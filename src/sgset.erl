@@ -5,7 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, add/2, merge/2, value/1]).
+-export([new/0, add/2, merge/2, value/1, from_list/1]).
 
 -record(sgset, {payload = []}).
 
@@ -24,6 +24,8 @@
 new() ->
     #sgset{}.
 
+from_list(L) ->
+    #sgset{payload = ordsets:from_list(L)}.
 %%--------------------------------------------------------------------
 %% @doc
 %% Adds an element to the Sgset.

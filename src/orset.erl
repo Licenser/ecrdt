@@ -6,7 +6,7 @@
 -endif.
 
 
--export([new/0, add/2, add/3, remove/2, merge/2, value/1, id/0]).
+-export([new/0, add/2, add/3, remove/2, merge/2, value/1, id/0, from_list/1, gc/1]).
 
 -record(orset, {adds, removes}).
 
@@ -14,11 +14,16 @@ new() ->
     #orset{adds = sgset:new(),
            removes = sgset:new()}.
 
-add(E, ORSet = #orset{adds = Adds}) ->
-    ORSet#orset{adds = sgset:add({E, id()}, Adds)}.
+from_list(L) ->
+    ID = id(),
+    #orset{adds = sgset:from_list([ {E, ID} || E <- L]),
+           removes = sgset:new()}.
 
 add(ID, E, ORSet = #orset{adds = Adds}) ->
     ORSet#orset{adds = sgset:add({E, ID}, Adds)}.
+
+add(E, ORSet = #orset{adds = Adds}) ->
+    ORSet#orset{adds = sgset:add({E, id()}, Adds)}.
 
 remove(E, ORSet = #orset{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {E1, _} <- raw_value(ORSet), E1 =:= E],
@@ -35,13 +40,17 @@ merge(#orset{adds = Adds0,
            removes = sgset:merge(Removes0, Removes1)}.
 
 raw_value(#orset{adds = Adds,
-             removes = Removes}) ->
+                 removes = Removes}) ->
     ordsets:subtract(sgset:value(Adds), sgset:value(Removes)).
 value(ORSet) ->
     ordsets:from_list([E || {E, _} <- raw_value(ORSet)]).
 
 id() ->
     {now(), node()}.
+
+gc(ORSet) ->
+    #orset{adds = raw_value(ORSet),
+           removes = sgset:new()}.
 
 %%%===================================================================
 %%% Tests
