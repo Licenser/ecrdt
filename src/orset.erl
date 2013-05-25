@@ -6,7 +6,7 @@
 -endif.
 
 
--export([new/0, add/2, add/3, remove/2, merge/2, value/1]).
+-export([new/0, add/2, add/3, remove/2, merge/2, value/1, id/0]).
 
 -record(orset, {adds, removes}).
 

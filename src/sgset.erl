@@ -87,7 +87,7 @@ prop_sgset() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
-                C =:= merge(A, B)
+                value(C) =:= value(merge(A, B))
             end).
 
 propper_test() ->

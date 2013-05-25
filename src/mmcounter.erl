@@ -64,7 +64,7 @@ apply_ops(Ops) ->
 targets() ->
     list({oneof([a, b]), oneof([inc, dec]),  pos_integer()}).
 
-prop_mmicounter() ->
+prop_mmcounter() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
