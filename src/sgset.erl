@@ -13,9 +13,13 @@
 
 -export_type([sgset/0]).
 
+%%%===================================================================
+%%% Implementation
+%%%===================================================================
+
 %%--------------------------------------------------------------------
 %% @doc
-%% Creates a new empty Sgset (only growing set)
+%% Creates a new empty SGset.
 %% @end
 %%--------------------------------------------------------------------
 
@@ -24,11 +28,17 @@
 new() ->
     #sgset{}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new  SGset with the elements from the provided list.
+%% @end
+%%--------------------------------------------------------------------
+
 from_list(L) ->
     #sgset{payload = ordsets:from_list(L)}.
 %%--------------------------------------------------------------------
 %% @doc
-%% Adds an element to the Sgset.
+%% Adds an element to the SGset.
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Element::term(), Sgset::sgset()) -> Sgset1::sgset().
@@ -38,7 +48,7 @@ add(Element, #sgset{payload = Payload}) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Merges tow Sgsets.
+%% Merges tow SGsets.
 %% @end
 %%--------------------------------------------------------------------
 -spec merge(Sgset1::sgset(), Sgset2::sgset()) -> Sgset::sgset().
@@ -49,14 +59,13 @@ merge(#sgset{payload = Payload1}, #sgset{payload = Payload2}) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Gets the raw value of a sgset.
+%% Gets the value of a SGset.
 %% @end
 %%--------------------------------------------------------------------
 -spec value(Sgset::sgset()) -> [Element::term()].
 
 value(#sgset{payload = Payload}) ->
     Payload.
-
 
 %%%===================================================================
 %%% Tests

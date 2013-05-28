@@ -48,11 +48,23 @@ op(a, inc, E, C1, C2, Check) ->
 op(b, inc, E, C1, C2, Check) ->
     {C1, inc(2, E, C2), inc(2, E, Check)};
 
+op(ab1, inc, E, C1, C2, Check) ->
+    {inc(1, E, C1), inc(1, E, C2), inc(1, E, Check)};
+
+op(ab2, inc, E, C1, C2, Check) ->
+    {inc(2, E, C1), inc(2, E, C2), inc(2, E, Check)};
+
 op(a, dec, E, C1, C2, Check) ->
     {dec(1, E, C1), C2, dec(1, E, Check)};
 
 op(b, dec, E, C1, C2, Check) ->
-    {C1, dec(2, E, C2), dec(2, E, Check)}.
+    {C1, dec(2, E, C2), dec(2, E, Check)};
+
+op(ab1, dec, E, C1, C2, Check) ->
+    {dec(1, E, C1), dec(1, E, C2), dec(1, E, Check)};
+
+op(ab2, dec, E, C1, C2, Check) ->
+    {dec(2, E, C1), dec(2, E, C2), dec(2, E, Check)}.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->
@@ -62,7 +74,7 @@ apply_ops(Ops) ->
 
 %% A list of opperations and targets.
 targets() ->
-    list({oneof([a, b]), oneof([inc, dec]),  pos_integer()}).
+    list({oneof([a, b, ab1, ab2]), oneof([inc, dec]),  pos_integer()}).
 
 prop_mmcounter() ->
     ?FORALL(Ts,  targets(),
