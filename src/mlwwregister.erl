@@ -1,4 +1,4 @@
--module(lwwregister).
+-module(mlwwregister).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
@@ -7,33 +7,33 @@
 
 -export([new/1, assign/2, downstream/2, merge/2, value/1, gc/1]).
 
--record(lwwregister, {value, t}).
+-record(mlwwregister, {value, t}).
 
--opaque lwwregister() :: #lwwregister{}.
+-opaque mlwwregister() :: #mlwwregister{}.
 
--export_type([lwwregister/0]).
+-export_type([mlwwregister/0]).
 
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
 
 new(V) ->
-    #lwwregister{t = now(), value = V}.
+    #mlwwregister{t = now(), value = V}.
 
 assign(V, _) ->
     T = now(),
     M = {T, V},
-    {M, #lwwregister{value = V,
+    {M, #mlwwregister{value = V,
                      t = T}}.
 
-downstream({T, V}, #lwwregister{t = T0}) when T > T0 ->
-    #lwwregister{value = V, t = T};
+downstream({T, V}, #mlwwregister{t = T0}) when T > T0 ->
+    #mlwwregister{value = V, t = T};
 
 downstream(_, R) ->
     R.
 
-merge(R1 = #lwwregister{t = T0},
-      #lwwregister{t = T1}) when T0 > T1->
+merge(R1 = #mlwwregister{t = T0},
+      #mlwwregister{t = T1}) when T0 > T1->
     R1;
 merge(_, R2) ->
     R2.
@@ -43,7 +43,7 @@ merge(_, R2) ->
 gc(R) ->
     R.
 
-value(#lwwregister{value = V}) ->
+value(#mlwwregister{value = V}) ->
     V.
 
 %%%===================================================================
