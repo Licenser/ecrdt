@@ -1,4 +1,4 @@
--module(sgset).
+-module(vgset).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").

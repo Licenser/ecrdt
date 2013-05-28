@@ -1,4 +1,4 @@
--module(ocounter).
+-module(mpncounter).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").

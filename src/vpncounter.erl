@@ -1,4 +1,4 @@
--module(mmicounter).
+-module(vpncounter).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").

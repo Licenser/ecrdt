@@ -1,4 +1,4 @@
--module(mmcounter).
+-module(vgcounter).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
