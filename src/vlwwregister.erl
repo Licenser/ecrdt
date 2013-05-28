@@ -1,49 +1,36 @@
--module(mlwwregister).
+-module(vlwwregister).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, assign/2, downstream/2, merge/2, value/1, gc/1]).
+-export([new/1, assign/2, merge/2, value/1]).
 
--record(mlwwregister, {value, t}).
+-record(vlwwregister, {value, t}).
 
--opaque mlwwregister() :: #mlwwregister{}.
+-opaque vlwwregister() :: #vlwwregister{}.
 
--export_type([mlwwregister/0]).
+-export_type([vlwwregister/0]).
 
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
 
 new(V) ->
-    #mlwwregister{t = now(), value = V}.
+    #vlwwregister{t = now(), value = V}.
 
 assign(V, _) ->
-    T = now(),
-    M = {T, V},
-    {M, #mlwwregister{value = V,
-                     t = T}}.
+    #vlwwregister{value = V, t = now()}.
 
-downstream({T, V}, #mlwwregister{t = T0}) when T > T0 ->
-    #mlwwregister{value = V, t = T};
-
-downstream(_, R) ->
-    R.
-
-merge(R1 = #mlwwregister{t = T0},
-      #mlwwregister{t = T1}) when T0 > T1->
+merge(R1 = #vlwwregister{t = T0},
+      #vlwwregister{t = T1}) when T0 > T1->
     R1;
+
 merge(_, R2) ->
     R2.
 
-
-
-gc(R) ->
-    R.
-
-value(#mlwwregister{value = V}) ->
+value(#vlwwregister{value = V}) ->
     V.
 
 %%%===================================================================
@@ -57,20 +44,13 @@ value(#mlwwregister{value = V}) ->
 -ifdef(TEST).
 
 op(a, E, C1, C2, Check) ->
-    {M, C11} = assign(E, C1),
-    Check1 = downstream(M, Check),
-    {C11, C2, Check1};
+    {assign(E, C1), C2, assign(E, Check)};
 
 op(b, E, C1, C2, Check) ->
-    {M, C21} = assign(E, C2),
-    Check1 = downstream(M, Check),
-    {C1, C21, Check1};
+    {C1, assign(E, C2), assign(E, Check)};
 
 op(ab, E, C1, C2, Check) ->
-    {M, C11} = assign(E, C1),
-    C21 = downstream(M, C2),
-    Check1 = downstream(M, Check),
-    {C11, C21, Check1}.
+    {assign(E, C1), assign(E, C2), assign(E, Check)}.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->
