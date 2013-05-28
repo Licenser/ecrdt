@@ -5,82 +5,69 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, value/1, inc/3, dec/3, merge/2]).
+-export([new/1, value/1, inc/3, merge/2]).
 
--record(mmcounter, {inc_counter, dec_counter}).
-
+-record(vgcounter, {vector, size}).
 
 new(Size) ->
-    #mmcounter{
-       inc_counter = mmicounter:new(Size),
-       dec_counter = mmicounter:new(Size)
-      }.
+    L = [ 0 || _ <- lists:seq(1, Size)],
+    #vgcounter{size = Size, vector = list_to_tuple(L)}.
+
 
 inc(Master, Increment,
-    Counter = #mmcounter{inc_counter = Inc}) ->
-    Counter#mmcounter{
-      inc_counter = mmicounter:inc(Master, Increment, Inc)
-     }.
+    Counter = #vgcounter{vector = Vector0,
+                          size = _Size}) when Increment > 0,
+                                              Master =< _Size ->
+    Value0 = element(Master, Vector0),
+    Value1 = Value0 + Increment,
+    Vector1 = setelement(Master, Vector0, Value1),
+    Counter#vgcounter{vector = Vector1}.
 
-dec(Master, Increment,
-    Counter = #mmcounter{dec_counter = Dec}) ->
-    Counter#mmcounter{
-      dec_counter = mmicounter:inc(Master, Increment, Dec)
-     }.
+merge(Counter0 = #vgcounter{vector = Vector0, size = _Size},
+      #vgcounter{vector = Vector1, size = _Size}) ->
+    VectorM = list_to_tuple(
+                merge_vecotrs(tuple_to_list(Vector0),
+                              tuple_to_list(Vector1),
+                              [])),
+    Counter0#vgcounter{vector = VectorM}.
 
-value(#mmcounter{dec_counter = Dec,
-                 inc_counter = Inc}) ->
-    mmicounter:value(Inc) - mmicounter:value(Dec).
+value(#vgcounter{vector = Vector0}) ->
+    Vector1 = tuple_to_list(Vector0),
+    lists:foldl(fun(V, Acc) ->
+                        Acc + V
+                end, 0, Vector1).
 
-merge(#mmcounter{dec_counter = Dec0,
-                 inc_counter = Inc0},
-      #mmcounter{dec_counter = Dec1,
-                 inc_counter = Inc1}) ->
-    #mmcounter{dec_counter = mmicounter:merge(Dec0, Dec1),
-               inc_counter = mmicounter:merge(Inc0, Inc1)}.
+merge_vecotrs([V0 | R0], [_V1 | R1], Acc) when V0 >= _V1 ->
+    merge_vecotrs(R0, R1, [V0 | Acc]);
+merge_vecotrs([_ | R0], [V1 | R1], Acc) ->
+    merge_vecotrs(R0, R1, [V1 | Acc]);
+merge_vecotrs([], [], Acc) ->
+    lists:reverse(Acc).
 
 
 -ifdef(TEST).
 
-op(a, inc, E, C1, C2, Check) ->
+op(a, E, C1, C2, Check) ->
     {inc(1, E, C1), C2, inc(1, E, Check)};
 
-op(b, inc, E, C1, C2, Check) ->
-    {C1, inc(2, E, C2), inc(2, E, Check)};
-
-op(ab1, inc, E, C1, C2, Check) ->
-    {inc(1, E, C1), inc(1, E, C2), inc(1, E, Check)};
-
-op(ab2, inc, E, C1, C2, Check) ->
-    {inc(2, E, C1), inc(2, E, C2), inc(2, E, Check)};
-
-op(a, dec, E, C1, C2, Check) ->
-    {dec(1, E, C1), C2, dec(1, E, Check)};
-
-op(b, dec, E, C1, C2, Check) ->
-    {C1, dec(2, E, C2), dec(2, E, Check)};
-
-op(ab1, dec, E, C1, C2, Check) ->
-    {dec(1, E, C1), dec(1, E, C2), dec(1, E, Check)};
-
-op(ab2, dec, E, C1, C2, Check) ->
-    {dec(2, E, C1), dec(2, E, C2), dec(2, E, Check)}.
+op(b, E, C1, C2, Check) ->
+    {C1, inc(2, E, C2), inc(2, E, Check)}.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->
-    lists:foldl(fun({T, O, E}, {A, B, C}) ->
-                        op(T, O, E, A, B, C)
+    lists:foldl(fun({T, E}, {A, B, C}) ->
+                        op(T, E, A, B, C)
                 end, {new(2), new(2), new(2)}, Ops).
 
 %% A list of opperations and targets.
 targets() ->
-    list({oneof([a, b, ab1, ab2]), oneof([inc, dec]),  pos_integer()}).
+    list({oneof([a, b]), pos_integer()}).
 
-prop_mmcounter() ->
+prop_vgcounter() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
-                C =:= merge(A, B)
+                value(C) =:= value(merge(A, B))
             end).
 
 propper_test() ->

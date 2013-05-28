@@ -7,62 +7,62 @@
 
 -export([new/0, inc/2, dec/2, downstream/2, merge/2, value/1, gc/1]).
 
--record(orcounter, {value = 0, messages = []}).
+-record(moncounter, {value = 0, messages = []}).
 
--opaque orcounter() :: #orcounter{}.
+-opaque moncounter() :: #moncounter{}.
 
--export_type([orcounter/0]).
+-export_type([moncounter/0]).
 
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
 
 new() ->
-    #orcounter{}.
+    #moncounter{}.
 
-inc(Inc, #orcounter{value = V, messages = Msgs}) ->
+inc(Inc, #moncounter{value = V, messages = Msgs}) ->
     M = {ecrdt:id(), inc, Inc},
-    {M, #orcounter{value = V + Inc,
+    {M, #moncounter{value = V + Inc,
                    messages = ordsets:add_element(M, Msgs)}}.
 
-dec(Dec, #orcounter{value = V, messages = Msgs}) ->
+dec(Dec, #moncounter{value = V, messages = Msgs}) ->
     M = {ecrdt:id(), dec, Dec},
-    {M, #orcounter{value = V - Dec,
+    {M, #moncounter{value = V - Dec,
                    messages = ordsets:add_element(M, Msgs)}}.
 
-downstream(M = {_, inc, Inc}, C = #orcounter{value = V, messages = Msgs}) ->
+downstream(M = {_, inc, Inc}, C = #moncounter{value = V, messages = Msgs}) ->
     case ordsets:is_element(M, Msgs) of
         true ->
             C;
         _ ->
-            C#orcounter{value = V + Inc,
+            C#moncounter{value = V + Inc,
                         messages = ordsets:add_element(M, Msgs)}
     end;
 
-downstream(M = {_, dec, Dec}, C = #orcounter{value = V, messages = Msgs}) ->
+downstream(M = {_, dec, Dec}, C = #moncounter{value = V, messages = Msgs}) ->
     case ordsets:is_element(M, Msgs) of
         true ->
             C;
         _ ->
-            C#orcounter{value = V - Dec,
+            C#moncounter{value = V - Dec,
                         messages = ordsets:add_element(M, Msgs)}
     end.
 
 
-merge(#orcounter{value = V1, messages = Msgs1},
-      #orcounter{messages = Msgs2}) ->
+merge(#moncounter{value = V1, messages = Msgs1},
+      #moncounter{messages = Msgs2}) ->
     New = ordsets:subtract(Msgs2, Msgs1),
     VR = lists:foldl(fun ({_, inc, Inc}, VAcc) ->
                             VAcc + Inc;
                         ({_, dec, Dec}, VAcc) ->
                             VAcc - Dec
                     end, V1, New),
-    #orcounter{value = VR, messages = ordsets:union(Msgs1, New)}.
+    #moncounter{value = VR, messages = ordsets:union(Msgs1, New)}.
 
-gc(#orcounter{value = V}) ->
-    #orcounter{value = V}.
+gc(#moncounter{value = V}) ->
+    #moncounter{value = V}.
 
-value(#orcounter{value = V}) ->
+value(#moncounter{value = V}) ->
     V.
 
 %%%===================================================================

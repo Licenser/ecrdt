@@ -7,11 +7,11 @@
 
 -export([new/0, add/2, merge/2, value/1, from_list/1]).
 
--record(sgset, {payload = []}).
+-record(vgset, {payload = []}).
 
--opaque sgset() :: #sgset{}.
+-opaque vgset() :: #vgset{}.
 
--export_type([sgset/0]).
+-export_type([vgset/0]).
 
 %%%===================================================================
 %%% Implementation
@@ -19,52 +19,52 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Creates a new empty SGset.
+%% Creates a new empty Vgset.
 %% @end
 %%--------------------------------------------------------------------
 
--spec new() -> sgset().
+-spec new() -> vgset().
 
 new() ->
-    #sgset{}.
+    #vgset{}.
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Creates a new  SGset with the elements from the provided list.
+%% Creates a new  Vgset with the elements from the provided list.
 %% @end
 %%--------------------------------------------------------------------
 
 from_list(L) ->
-    #sgset{payload = ordsets:from_list(L)}.
+    #vgset{payload = ordsets:from_list(L)}.
 %%--------------------------------------------------------------------
 %% @doc
-%% Adds an element to the SGset.
+%% Adds an element to the Vgset.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Element::term(), Sgset::sgset()) -> Sgset1::sgset().
+-spec add(Element::term(), Vgset::vgset()) -> Vgset1::vgset().
 
-add(Element, #sgset{payload = Payload}) ->
-    #sgset{payload = ordsets:add_element(Element, Payload)}.
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Merges tow SGsets.
-%% @end
-%%--------------------------------------------------------------------
--spec merge(Sgset1::sgset(), Sgset2::sgset()) -> Sgset::sgset().
-
-merge(#sgset{payload = Payload1}, #sgset{payload = Payload2}) ->
-    #sgset{payload = ordsets:union(Payload1, Payload2)}.
-
+add(Element, #vgset{payload = Payload}) ->
+    #vgset{payload = ordsets:add_element(Element, Payload)}.
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Gets the value of a SGset.
+%% Merges tow Vgsets.
 %% @end
 %%--------------------------------------------------------------------
--spec value(Sgset::sgset()) -> [Element::term()].
+-spec merge(Vgset1::vgset(), Vgset2::vgset()) -> Vgset::vgset().
 
-value(#sgset{payload = Payload}) ->
+merge(#vgset{payload = Payload1}, #vgset{payload = Payload2}) ->
+    #vgset{payload = ordsets:union(Payload1, Payload2)}.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Gets the value of a Vgset.
+%% @end
+%%--------------------------------------------------------------------
+-spec value(Vgset::vgset()) -> [Element::term()].
+
+value(#vgset{payload = Payload}) ->
     Payload.
 
 %%%===================================================================
@@ -75,14 +75,14 @@ value(#sgset{payload = Payload}) ->
 
 %% Apply a option either to the first set the second one or both.
 %% Also keeps track of all changes in a check set (3rd).
-op(a, E, Sgset1, Sgset2, Check) ->
-    {add(E, Sgset1), Sgset2, add(E, Check)};
+op(a, E, Vgset1, Vgset2, Check) ->
+    {add(E, Vgset1), Vgset2, add(E, Check)};
 
-op(b, E, Sgset1, Sgset2, Check) ->
-    {Sgset1, add(E, Sgset2), add(E, Check)};
+op(b, E, Vgset1, Vgset2, Check) ->
+    {Vgset1, add(E, Vgset2), add(E, Check)};
 
-op(ab, E, Sgset1, Sgset2, Check) ->
-    {add(E, Sgset1), add(E, Sgset2), add(E, Check)}.
+op(ab, E, Vgset1, Vgset2, Check) ->
+    {add(E, Vgset1), add(E, Vgset2), add(E, Check)}.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->
@@ -94,7 +94,7 @@ apply_ops(Ops) ->
 targets() ->
     list({oneof([a, b, ab]), integer()}).
 
-prop_sgset() ->
+prop_vgset() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
