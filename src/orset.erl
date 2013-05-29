@@ -19,29 +19,29 @@
 
 -spec new() -> orset().
 new() ->
-    #orset{adds = sgset:new(),
-           removes = sgset:new()}.
+    #orset{adds = vgset:new(),
+           removes = vgset:new()}.
 
 -spec from_list(list()) -> orset().
 from_list(L) ->
     ID = ecrdt:id(),
-    #orset{adds = sgset:from_list([ {E, ID} || E <- L]),
-           removes = sgset:new()}.
+    #orset{adds = vgset:from_list([ {E, ID} || E <- L]),
+           removes = vgset:new()}.
 
 -spec add(ID::term(), Element::term(), ORSet::orset()) -> ORSet1::orset().
 add(ID, Element, ORSet = #orset{adds = Adds}) ->
-    ORSet#orset{adds = sgset:add({Element, ID}, Adds)}.
+    ORSet#orset{adds = vgset:add({Element, ID}, Adds)}.
 
 -spec add(Element::term(), ORSet::orset()) -> ORSet1::orset().
 add(Element, ORSet = #orset{adds = Adds}) ->
-    ORSet#orset{adds = sgset:add({Element, ecrdt:id()}, Adds)}.
+    ORSet#orset{adds = vgset:add({Element, ecrdt:id()}, Adds)}.
 
 
 -spec remove(Element::term(), ORSet::orset()) -> ORSet1::orset().
 remove(Element, ORSet = #orset{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {E1, _} <- raw_value(ORSet), E1 =:= Element],
     Removes1 = lists:foldl(fun(R, Rs) ->
-                                  sgset:add(R, Rs)
+                                  vgset:add(R, Rs)
                           end, Removes, CurrentExisting),
     ORSet#orset{removes = Removes1}.
 
@@ -50,8 +50,8 @@ merge(#orset{adds = Adds0,
              removes = Removes0},
       #orset{adds = Adds1,
              removes = Removes1}) ->
-    #orset{adds = sgset:merge(Adds0, Adds1),
-           removes = sgset:merge(Removes0, Removes1)}.
+    #orset{adds = vgset:merge(Adds0, Adds1),
+           removes = vgset:merge(Removes0, Removes1)}.
 
 -spec value(ORSet::orset()) -> [Element::term()].
 value(ORSet) ->
@@ -60,7 +60,7 @@ value(ORSet) ->
 -spec gc(ORSet::orset()) -> ORSetGCed::orset().
 gc(ORSet) ->
     #orset{adds = raw_value(ORSet),
-           removes = sgset:new()}.
+           removes = vgset:new()}.
 
 %%%===================================================================
 %%% Internal functions
@@ -69,7 +69,7 @@ gc(ORSet) ->
 -spec raw_value(ORSet::orset()) -> [{Element::term(), ID::term()}].
 raw_value(#orset{adds = Adds,
                  removes = Removes}) ->
-    ordsets:subtract(sgset:value(Adds), sgset:value(Removes)).
+    ordsets:subtract(vgset:value(Adds), vgset:value(Removes)).
 
 %%%===================================================================
 %%% Tests

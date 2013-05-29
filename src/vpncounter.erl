@@ -12,32 +12,32 @@
 
 new(Size) ->
     #vpncounter{
-       inc_counter = mmicounter:new(Size),
-       dec_counter = mmicounter:new(Size)
+       inc_counter = vgcounter:new(Size),
+       dec_counter = vgcounter:new(Size)
       }.
 
 inc(Master, Increment,
     Counter = #vpncounter{inc_counter = Inc}) ->
     Counter#vpncounter{
-      inc_counter = mmicounter:inc(Master, Increment, Inc)
+      inc_counter = vgcounter:inc(Master, Increment, Inc)
      }.
 
 dec(Master, Increment,
     Counter = #vpncounter{dec_counter = Dec}) ->
     Counter#vpncounter{
-      dec_counter = mmicounter:inc(Master, Increment, Dec)
+      dec_counter = vgcounter:inc(Master, Increment, Dec)
      }.
 
 value(#vpncounter{dec_counter = Dec,
                  inc_counter = Inc}) ->
-    mmicounter:value(Inc) - mmicounter:value(Dec).
+    vgcounter:value(Inc) - vgcounter:value(Dec).
 
 merge(#vpncounter{dec_counter = Dec0,
                  inc_counter = Inc0},
       #vpncounter{dec_counter = Dec1,
                  inc_counter = Inc1}) ->
-    #vpncounter{dec_counter = mmicounter:merge(Dec0, Dec1),
-               inc_counter = mmicounter:merge(Inc0, Inc1)}.
+    #vpncounter{dec_counter = vgcounter:merge(Dec0, Dec1),
+               inc_counter = vgcounter:merge(Inc0, Inc1)}.
 
 
 -ifdef(TEST).

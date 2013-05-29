@@ -5,7 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, inc/2, dec/2, downstream/2, merge/2, value/1, gc/1]).
+-export([new/0, inc/2, dec/2, downstream/2, replay/2, value/1, gc/1]).
 
 -record(moncounter, {value = 0, messages = []}).
 
@@ -21,43 +21,39 @@ new() ->
     #moncounter{}.
 
 inc(Inc, #moncounter{value = V, messages = Msgs}) ->
-    M = {ecrdt:id(), inc, Inc},
+    ID = ecrdt:id(),
+    M = {ID, inc, Inc},
     {M, #moncounter{value = V + Inc,
-                   messages = ordsets:add_element(M, Msgs)}}.
+                   messages = ordsets:add_element(ID, Msgs)}}.
 
 dec(Dec, #moncounter{value = V, messages = Msgs}) ->
-    M = {ecrdt:id(), dec, Dec},
+    ID = ecrdt:id(),
+    M = {ID, dec, Dec},
     {M, #moncounter{value = V - Dec,
-                   messages = ordsets:add_element(M, Msgs)}}.
+                   messages = ordsets:add_element(ID, Msgs)}}.
 
-downstream(M = {_, inc, Inc}, C = #moncounter{value = V, messages = Msgs}) ->
-    case ordsets:is_element(M, Msgs) of
+downstream({ID, inc, Inc}, C = #moncounter{value = V, messages = Msgs}) ->
+    case ordsets:is_element(ID, Msgs) of
         true ->
             C;
         _ ->
             C#moncounter{value = V + Inc,
-                        messages = ordsets:add_element(M, Msgs)}
+                        messages = ordsets:add_element(ID, Msgs)}
     end;
 
-downstream(M = {_, dec, Dec}, C = #moncounter{value = V, messages = Msgs}) ->
-    case ordsets:is_element(M, Msgs) of
+downstream({ID, dec, Dec}, C = #moncounter{value = V, messages = Msgs}) ->
+    case ordsets:is_element(ID, Msgs) of
         true ->
             C;
         _ ->
             C#moncounter{value = V - Dec,
-                        messages = ordsets:add_element(M, Msgs)}
+                        messages = ordsets:add_element(ID, Msgs)}
     end.
 
-
-merge(#moncounter{value = V1, messages = Msgs1},
-      #moncounter{messages = Msgs2}) ->
-    New = ordsets:subtract(Msgs2, Msgs1),
-    VR = lists:foldl(fun ({_, inc, Inc}, VAcc) ->
-                            VAcc + Inc;
-                        ({_, dec, Dec}, VAcc) ->
-                            VAcc - Dec
-                    end, V1, New),
-    #moncounter{value = VR, messages = ordsets:union(Msgs1, New)}.
+replay(Messages, Counter) ->
+    lists:foldl(fun(M, C) ->
+                        downstream(M, C)
+                end, Counter, Messages).
 
 gc(#moncounter{value = V}) ->
     #moncounter{value = V}.
@@ -75,43 +71,43 @@ value(#moncounter{value = V}) ->
 
 -ifdef(TEST).
 
-op(a, inc, E, C1, C2, Check) ->
+op(a, inc, E, C1, M1, C2, M2, Check) ->
     {M, C11} = inc(E, C1),
     Check1 = downstream(M, Check),
-    {C11, C2, Check1};
+    {C11, M1, C2, [M|M2], Check1};
 
-op(b, inc, E, C1, C2, Check) ->
+op(b, inc, E, C1, M1, C2, M2, Check) ->
     {M, C21} = inc(E, C2),
     Check1 = downstream(M, Check),
-    {C1, C21, Check1};
+    {C1, [M|M1], C21, M2, Check1};
 
-op(ab, inc, E, C1, C2, Check) ->
+op(ab, inc, E, C1, M1, C2, M2, Check) ->
     {M, C11} = inc(E, C1),
     C21 = downstream(M, C2),
     Check1 = downstream(M, Check),
-    {C11, C21, Check1};
+    {C11, M1, C21, M2, Check1};
 
-op(a, dec, E, C1, C2, Check) ->
+op(a, dec, E, C1, M1, C2, M2, Check) ->
     {M, C11} = dec(E, C1),
     Check1 = downstream(M, Check),
-    {C11, C2, Check1};
+    {C11, M1, C2, [M|M2], Check1};
 
-op(b, dec, E, C1, C2, Check) ->
+op(b, dec, E, C1, M1, C2, M2, Check) ->
     {M, C21} = dec(E, C2),
     Check1 = downstream(M, Check),
-    {C1, C21, Check1};
+    {C1, [M|M1], C21, M2, Check1};
 
-op(ab, dec, E, C1, C2, Check) ->
+op(ab, dec, E, C1, M1, C2, M2, Check) ->
     {M, C11} = dec(E, C1),
     C21 = downstream(M, C2),
     Check1 = downstream(M, Check),
-    {C11, C21, Check1}.
+    {C11, M1, C21, M2, Check1}.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->
-    lists:foldl(fun({T, O, E}, {A, B, C}) ->
-                        op(T, O, E, A, B, C)
-                end, {new(), new(), new()}, Ops).
+    lists:foldl(fun({T, O, E}, {A, MA, B, MB, C}) ->
+                        op(T, O, E, A, MA, B, MB, C)
+                end, {new(), [], new(), [], new()}, Ops).
 
 %% A list of opperations and targets.
 targets() ->
@@ -120,8 +116,9 @@ targets() ->
 prop_mmcounter() ->
     ?FORALL(Ts,  targets(),
             begin
-                {A, B, C} = apply_ops(Ts),
-                value(C) =:=value(merge(A, B))
+                {A, Ma, B, Mb, C} = apply_ops(Ts),
+                value(C) =:= value(replay(Ma, A)) andalso
+                    value(C) =:= value(replay(Mb, B))
             end).
 
 propper_test() ->
