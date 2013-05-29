@@ -39,7 +39,6 @@ merge(#vpncounter{dec_counter = Dec0,
     #vpncounter{dec_counter = vgcounter:merge(Dec0, Dec1),
                inc_counter = vgcounter:merge(Inc0, Inc1)}.
 
-
 -ifdef(TEST).
 
 op(a, inc, E, C1, C2, Check) ->
