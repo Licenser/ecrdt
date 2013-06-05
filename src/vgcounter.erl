@@ -1,3 +1,13 @@
+%%%-------------------------------------------------------------------
+%%% @author Heinz Nikolaus Gies <heinz@licenser.net>
+%%% @copyright (C) 2013, Heinz Nikolaus Gies
+%%% @doc
+%%% An implementation of the GCounter (grow only counter) CvRDT using
+%%% an known set of masters identified by a direct mapping to integer
+%%% id's (1...N).
+%%% @end
+%%% Created :  1 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
+%%%-------------------------------------------------------------------
 -module(vgcounter).
 
 -ifdef(TEST).
@@ -9,20 +19,51 @@
 
 -record(vgcounter, {vector, size}).
 
+-opaque vgcounter() :: #vgcounter{}.
+
+-export_type([vgcounter/0]).
+
+%%%===================================================================
+%%% Implementation
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new empty vgcounter with a given size. Be aware that the
+%% size can't be changed later on.
+%% @end
+%%--------------------------------------------------------------------
+-spec new(Size::pos_integer()) -> VGCounter::vgcounter().
 new(Size) ->
     L = [ 0 || _ <- lists:seq(1, Size)],
     #vgcounter{size = Size, vector = list_to_tuple(L)}.
 
-
+%%--------------------------------------------------------------------
+%% @doc
+%% Increments the counter for a given master.
+%% @end
+%%--------------------------------------------------------------------
+-spec inc(Master::pos_integer(),
+          Increment::pos_integer(),
+          VGCounter::vgcounter()) ->
+                 VGCounter1::vgcounter().
 inc(Master, Increment,
     Counter = #vgcounter{vector = Vector0,
-                          size = _Size}) when Increment > 0,
-                                              Master =< _Size ->
+                         size = _Size}) when Increment > 0,
+                                             Master =< _Size ->
     Value0 = element(Master, Vector0),
     Value1 = Value0 + Increment,
     Vector1 = setelement(Master, Vector0, Value1),
     Counter#vgcounter{vector = Vector1}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Merges to GCounters, by keeping the maximum known value for each
+%% master.
+%% @end
+%%--------------------------------------------------------------------
+-spec merge(VGCounter1::vgcounter(), VGCounter2::vgcounter()) ->
+                   VGCounter::vgcounter().
 merge(Counter0 = #vgcounter{vector = Vector0, size = _Size},
       #vgcounter{vector = Vector1, size = _Size}) ->
     VectorM = list_to_tuple(
@@ -31,11 +72,18 @@ merge(Counter0 = #vgcounter{vector = Vector0, size = _Size},
                               [])),
     Counter0#vgcounter{vector = VectorM}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Compiles the value of the counter by summing up all master values.
+%% @end
+%%--------------------------------------------------------------------
+-spec value(VGCounter::vgcounter()) -> Value::pos_integer().
 value(#vgcounter{vector = Vector0}) ->
-    Vector1 = tuple_to_list(Vector0),
-    lists:foldl(fun(V, Acc) ->
-                        Acc + V
-                end, 0, Vector1).
+    lists:sum(tuple_to_list(Vector0)).
+
+%%%===================================================================
+%%% Internal Functions
+%%%===================================================================
 
 merge_vecotrs([V0 | R0], [_V1 | R1], Acc) when V0 >= _V1 ->
     merge_vecotrs(R0, R1, [V0 | Acc]);
@@ -44,6 +92,9 @@ merge_vecotrs([_ | R0], [V1 | R1], Acc) ->
 merge_vecotrs([], [], Acc) ->
     lists:reverse(Acc).
 
+%%%===================================================================
+%%% Tests
+%%%===================================================================
 
 -ifdef(TEST).
 

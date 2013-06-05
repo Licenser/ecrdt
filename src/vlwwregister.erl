@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author Heinz Nikolaus Gies <heinz@licenser.net>
+%%% @copyright (C) 2013, Heinz Nikolaus Gies
+%%% @doc
+%%% This implements a simple last write wins register.
+%%% @end
+%%% Created :  5 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
+%%%-------------------------------------------------------------------
 -module(vlwwregister).
 
 -ifdef(TEST).
@@ -7,7 +15,8 @@
 
 -export([new/1, assign/2, merge/2, value/1]).
 
--record(vlwwregister, {value, t}).
+-record(vlwwregister, {value :: term(),
+                       t :: term()}).
 
 -opaque vlwwregister() :: #vlwwregister{}.
 
@@ -17,12 +26,34 @@
 %%% Implementation
 %%%===================================================================
 
-new(V) ->
-    #vlwwregister{t = now(), value = V}.
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new empty LWW register.
+%% @end
+%%--------------------------------------------------------------------
+-spec new(Value::term()) ->
+    LWWRegister::vlwwregister().
+new(Value) ->
+    #vlwwregister{t = now(), value = Value}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets the value of a LWW register and updates the timestamp.
+%% @end
+%%--------------------------------------------------------------------
+-spec assign(Value::term(), LWWRegister::vlwwregister()) ->
+    LWWRegister1::vlwwregister().
 assign(V, _) ->
     #vlwwregister{value = V, t = now()}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Merges two LWW registers by discarding the older one.
+%% @end
+%%--------------------------------------------------------------------
+-spec merge(LWWRegister1::vlwwregister(),
+            LWWRegister2::vlwwregister()) ->
+                   LWWRegister1::vlwwregister().
 merge(R1 = #vlwwregister{t = T0},
       #vlwwregister{t = T1}) when T0 > T1->
     R1;
@@ -30,6 +61,12 @@ merge(R1 = #vlwwregister{t = T0},
 merge(_, R2) ->
     R2.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Gets the value out of a LWW register.
+%% @end
+%%--------------------------------------------------------------------
+-spec value(LWWRegister::vlwwregister()) -> Value::term().
 value(#vlwwregister{value = V}) ->
     V.
 

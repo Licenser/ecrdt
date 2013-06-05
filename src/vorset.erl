@@ -1,4 +1,15 @@
--module(orset).
+%%%-------------------------------------------------------------------
+%%% @author Heinz Nikolaus Gies <heinz@licenser.net>
+%%% @copyright (C) 2013, Heinz Nikolaus Gies
+%%% @doc
+%%% An Implementation of the OR Set (Observe Remove Set) CvRDT. It
+%%% improves over the 2P set by allowing to readd removed elemetns at
+%%% the cost of keeping a tumbstone set and requiring master
+%%% identification.
+%%% @end
+%%% Created :  1 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
+%%%-------------------------------------------------------------------
+-module(vorset).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
@@ -7,7 +18,8 @@
 
 -export([new/0, add/2, add/3, remove/2, merge/2, value/1, from_list/1, gc/1]).
 
--record(orset, {adds, removes}).
+-record(orset, {adds :: vgset:vgset(),
+                removes :: vgset:vgset()}).
 
 -opaque orset() :: #orset{}.
 
@@ -17,26 +29,53 @@
 %%% Implementation
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new empty OR Set.
+%% @end
+%%--------------------------------------------------------------------
 -spec new() -> orset().
 new() ->
     #orset{adds = vgset:new(),
            removes = vgset:new()}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new OR Set form a list by adding each element in the
+%% list.
+%% @end
+%%--------------------------------------------------------------------
 -spec from_list(list()) -> orset().
 from_list(L) ->
     ID = ecrdt:id(),
     #orset{adds = vgset:from_list([ {E, ID} || E <- L]),
            removes = vgset:new()}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Adds an element to the OR set with a given master ID.
+%% @end
+%%--------------------------------------------------------------------
 -spec add(ID::term(), Element::term(), ORSet::orset()) -> ORSet1::orset().
 add(ID, Element, ORSet = #orset{adds = Adds}) ->
     ORSet#orset{adds = vgset:add({Element, ID}, Adds)}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Adds an element to the OR set using the default ID function
+%% provided by ecrdt:id().
+%% @end
+%%--------------------------------------------------------------------
 -spec add(Element::term(), ORSet::orset()) -> ORSet1::orset().
 add(Element, ORSet = #orset{adds = Adds}) ->
     ORSet#orset{adds = vgset:add({Element, ecrdt:id()}, Adds)}.
 
-
+%%--------------------------------------------------------------------
+%% @doc
+%% Removes a element from the OR set by finding all observed adds and
+%% putting them in the list of removed items.
+%% @end
+%%--------------------------------------------------------------------
 -spec remove(Element::term(), ORSet::orset()) -> ORSet1::orset().
 remove(Element, ORSet = #orset{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {E1, _} <- raw_value(ORSet), E1 =:= Element],
@@ -45,6 +84,11 @@ remove(Element, ORSet = #orset{removes = Removes}) ->
                           end, Removes, CurrentExisting),
     ORSet#orset{removes = Removes1}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Merges two OR Sets by taking the union of adds and removes.
+%% @end
+%%--------------------------------------------------------------------
 -spec merge(ORSet0::orset(), ORSet1::orset()) -> ORSetM::orset().
 merge(#orset{adds = Adds0,
              removes = Removes0},
@@ -53,10 +97,25 @@ merge(#orset{adds = Adds0,
     #orset{adds = vgset:merge(Adds0, Adds1),
            removes = vgset:merge(Removes0, Removes1)}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Retrives the list of values from an OR Set by taking the
+%% substract of adds and removes then eleminating the ID field.
+%% @end
+%%--------------------------------------------------------------------
 -spec value(ORSet::orset()) -> [Element::term()].
 value(ORSet) ->
     ordsets:from_list([E || {E, _} <- raw_value(ORSet)]).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Garbage collects a OR set by storing the currently existing values
+%% only as adds and clearing the removes.
+%%
+%% Be aware that this needs to be carried out syncronously or will
+%% lead to unexpected results!
+%% @end
+%%--------------------------------------------------------------------
 -spec gc(ORSet::orset()) -> ORSetGCed::orset().
 gc(ORSet) ->
     #orset{adds = raw_value(ORSet),

@@ -1,3 +1,12 @@
+%%%-------------------------------------------------------------------
+%%% @author Heinz Nikolaus Gies <heinz@licenser.net>
+%%% @copyright (C) 2013, Heinz Nikolaus Gies
+%%% @doc
+%%% This implements the NPCounter (negative positive counter) CvRDT
+%%% based on two GCounters. This implementation is fixed size.
+%%% @end
+%%% Created :  1 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
+%%%-------------------------------------------------------------------
 -module(vpncounter).
 
 -ifdef(TEST).
@@ -7,31 +16,72 @@
 
 -export([new/1, value/1, inc/3, dec/3, merge/2]).
 
--record(vpncounter, {inc_counter, dec_counter}).
+-record(vpncounter, {inc_counter :: vgcounter:vgcounter(),
+                     dec_counter :: vgcounter:vgcounter()}).
 
+-opaque vpncounter() :: #vpncounter{}.
 
+-export_type([vpncounter/0]).
+
+%%%===================================================================
+%%% Implementation
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new empty vnpcounter with a given size. Be aware that the
+%% size can't be changed later on.
+%% @end
+%%--------------------------------------------------------------------
+-spec new(Size::pos_integer()) -> VPNCounter::vpncounter().
 new(Size) ->
     #vpncounter{
        inc_counter = vgcounter:new(Size),
        dec_counter = vgcounter:new(Size)
       }.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Increments the counter for a given master.
+%% @end
+%%--------------------------------------------------------------------
+-spec inc(Master::pos_integer(),
+          Increment::pos_integer(),
+          VPNCounter::vpncounter()) ->
+                 VPNCounter1::vpncounter().
 inc(Master, Increment,
     Counter = #vpncounter{inc_counter = Inc}) ->
     Counter#vpncounter{
       inc_counter = vgcounter:inc(Master, Increment, Inc)
      }.
 
-dec(Master, Increment,
+%%--------------------------------------------------------------------
+%% @doc
+%% Increments the counter for a given master.
+%% @end
+%%--------------------------------------------------------------------
+-spec dec(Master::pos_integer(),
+          Decrement::pos_integer(),
+          VNPCounter::vpncounter()) ->
+                 VPNCounter1::vpncounter().
+dec(Master, Decrement,
     Counter = #vpncounter{dec_counter = Dec}) ->
     Counter#vpncounter{
-      dec_counter = vgcounter:inc(Master, Increment, Dec)
+      dec_counter = vgcounter:inc(Master, Decrement, Dec)
      }.
 
 value(#vpncounter{dec_counter = Dec,
                  inc_counter = Inc}) ->
     vgcounter:value(Inc) - vgcounter:value(Dec).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Merges to PNCounters, by keeping the maximum known value for each
+%% master for increments and decrements.
+%% @end
+%%--------------------------------------------------------------------
+-spec merge(VPNCounter1::vpncounter(), VGCounter2::vpncounter()) ->
+                   VPNCounter::vpncounter().
 merge(#vpncounter{dec_counter = Dec0,
                  inc_counter = Inc0},
       #vpncounter{dec_counter = Dec1,

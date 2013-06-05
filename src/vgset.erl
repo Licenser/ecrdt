@@ -1,3 +1,13 @@
+%%%-------------------------------------------------------------------
+%%% @author Heinz Nikolaus Gies <heinz@licenser.net>
+%%% @copyright (C) 2013, Heinz Nikolaus Gies
+%%% @doc
+%%% An Implementation of the GSset (grow only set) CvRDT. The
+%%% implementation is based on ordsets.
+%%% @end
+%%% Created :  1 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
+%%%-------------------------------------------------------------------
+
 -module(vgset).
 
 -ifdef(TEST).
@@ -22,27 +32,25 @@
 %% Creates a new empty Vgset.
 %% @end
 %%--------------------------------------------------------------------
-
 -spec new() -> vgset().
-
 new() ->
     #vgset{}.
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Creates a new  Vgset with the elements from the provided list.
+%% Creates a new Vgset with the elements from the provided list.
 %% @end
 %%--------------------------------------------------------------------
-
+-spec from_list(List::[]) -> VGset::vgset().
 from_list(L) ->
     #vgset{payload = ordsets:from_list(L)}.
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Adds an element to the Vgset.
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Element::term(), Vgset::vgset()) -> Vgset1::vgset().
-
 add(Element, #vgset{payload = Payload}) ->
     #vgset{payload = ordsets:add_element(Element, Payload)}.
 
@@ -52,10 +60,8 @@ add(Element, #vgset{payload = Payload}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec merge(Vgset1::vgset(), Vgset2::vgset()) -> Vgset::vgset().
-
 merge(#vgset{payload = Payload1}, #vgset{payload = Payload2}) ->
     #vgset{payload = ordsets:union(Payload1, Payload2)}.
-
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -63,7 +69,6 @@ merge(#vgset{payload = Payload1}, #vgset{payload = Payload2}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec value(Vgset::vgset()) -> [Element::term()].
-
 value(#vgset{payload = Payload}) ->
     Payload.
 
