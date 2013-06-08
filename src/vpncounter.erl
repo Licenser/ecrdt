@@ -17,7 +17,8 @@
 -export([new/1, value/1, inc/3, dec/3, merge/2]).
 
 -record(vpncounter, {inc_counter :: vgcounter:vgcounter(),
-                     dec_counter :: vgcounter:vgcounter()}).
+                     dec_counter :: vgcounter:vgcounter(),
+                     size :: pos_integer()}).
 
 -opaque vpncounter() :: #vpncounter{}.
 
@@ -34,7 +35,8 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec new(Size::pos_integer()) -> VPNCounter::vpncounter().
-new(Size) ->
+new(Size) when is_integer(Size),
+               Size > 0 ->
     #vpncounter{
        inc_counter = vgcounter:new(Size),
        dec_counter = vgcounter:new(Size)
@@ -50,7 +52,10 @@ new(Size) ->
           VPNCounter::vpncounter()) ->
                  VPNCounter1::vpncounter().
 inc(Master, Increment,
-    Counter = #vpncounter{inc_counter = Inc}) ->
+    Counter = #vpncounter{inc_counter = Inc,
+                          size = _Size}) when is_integer(Master),
+                                              Master > 0,
+                                              Master =< _Size ->
     Counter#vpncounter{
       inc_counter = vgcounter:inc(Master, Increment, Inc)
      }.
@@ -65,13 +70,22 @@ inc(Master, Increment,
           VNPCounter::vpncounter()) ->
                  VPNCounter1::vpncounter().
 dec(Master, Decrement,
-    Counter = #vpncounter{dec_counter = Dec}) ->
+    Counter = #vpncounter{dec_counter = Dec,
+                          size = _Size}) when is_integer(Master),
+                                              Master > 0,
+                                              Master =< _Size ->
     Counter#vpncounter{
       dec_counter = vgcounter:inc(Master, Decrement, Dec)
      }.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Calculates the final value of the counter.
+%% @end
+%%--------------------------------------------------------------------
+-spec value(VPNCounter :: vpncounter()) -> integer().
 value(#vpncounter{dec_counter = Dec,
-                 inc_counter = Inc}) ->
+                  inc_counter = Inc}) ->
     vgcounter:value(Inc) - vgcounter:value(Dec).
 
 %%--------------------------------------------------------------------
@@ -83,11 +97,14 @@ value(#vpncounter{dec_counter = Dec,
 -spec merge(VPNCounter1::vpncounter(), VGCounter2::vpncounter()) ->
                    VPNCounter::vpncounter().
 merge(#vpncounter{dec_counter = Dec0,
-                 inc_counter = Inc0},
+                  inc_counter = Inc0,
+                  size = Size},
       #vpncounter{dec_counter = Dec1,
-                 inc_counter = Inc1}) ->
+                  inc_counter = Inc1,
+                  size = Size}) ->
     #vpncounter{dec_counter = vgcounter:merge(Dec0, Dec1),
-               inc_counter = vgcounter:merge(Inc0, Inc1)}.
+                inc_counter = vgcounter:merge(Inc0, Inc1),
+                size = Size}.
 
 -ifdef(TEST).
 

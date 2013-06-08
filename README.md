@@ -13,6 +13,7 @@ The first letter of the module name indicates what kind of CRDT the mudle implem
 
 
 ## Resources
+* [Call me maybe: Riak](http://aphyr.com/posts/285-call-me-maybe-riak)
 * [Marc Shapiro](http://pagesperso-systeme.lip6.fr/Marc.Shapiro/pubs.html#SEC-SSS)
 	* [CRDTs: Consistency without concurrency control](http://pagesperso-systeme.lip6.fr/Marc.Shapiro/papers/RR-6956.pdf)
 	* [An Optimized Conﬂict-free Replicated Set](http://pagesperso-systeme.lip6.fr/Marc.Shapiro/papers/RR-8083.pdf)
