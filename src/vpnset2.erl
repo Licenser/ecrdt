@@ -2,27 +2,27 @@
 %%% @author Heinz Nikolaus Gies <heinz@licenser.net>
 %%% @copyright (C) 2013, Heinz Nikolaus Gies
 %%% @doc
-%%% An implementation of PN Sets based on a defined number of masters.
+%%% An implementation of PN Sets based on a undefined set of uniqu
+%%% masters.
 %%% @end
 %%% Created :  8 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(vpnset).
+-module(vpnset2).
 
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, add/3, remove/3, merge/2, value/1]).
+-export([new/0, add/3, remove/3, merge/2, value/1]).
 
--type pnset_element() :: {term(), vpncounter:vpncounter()}.
+-type pnset_element() :: {term(), vpncounter2:vpncounter2()}.
 
--record(vpnset, {values = [] :: pnset_element(),
-                 size :: pos_integer()}).
+-record(vpnset2, {values = [] :: pnset_element()}).
 
--opaque vpnset() :: #vpnset{}.
+-opaque vpnset2() :: #vpnset2{}.
 
--export_type([vpnset/0]).
+-export_type([vpnset2/0]).
 
 %%%===================================================================
 %%% Implementation
@@ -33,9 +33,9 @@
 %% Creates a new empty PN Set.
 %% @end
 %%--------------------------------------------------------------------
--spec new(Size::pos_integer()) -> vpnset().
-new(Size) ->
-    #vpnset{size = Size}.
+-spec new() -> vpnset2().
+new() ->
+    #vpnset2{}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -44,27 +44,22 @@ new(Size) ->
 %%--------------------------------------------------------------------
 -spec add(Master::pos_integer(),
           Element::term(),
-          Set::vpnset()) ->
-                 Set1::vpnset().
+          Set::vpnset2()) ->
+                 Set1::vpnset2().
 add(Master, Element,
-    #vpnset{values = Values,
-            size = Size})  when is_integer(Master),
-                                Master > 0,
-                                Master =< Size ->
+    #vpnset2{values = Values})  ->
     case lists:keytake(Element, 1, Values) of
         false ->
-            #vpnset{
-               size = Size,
+            #vpnset2{
                values =
                    [{Element,
-                     vpncounter:inc(Master, 1, vpncounter:new(Size))}
+                     vpncounter2:inc(Master, 1, vpncounter2:new())}
                     | Values]};
         {value, {_, Cnt}, Values1} ->
-            #vpnset{
-               size = Size,
+            #vpnset2{
                values =
                    [{Element,
-                     vpncounter:inc(Master, 1, Cnt)}
+                     vpncounter2:inc(Master, 1, Cnt)}
                     | Values1]}
     end.
 %%--------------------------------------------------------------------
@@ -75,22 +70,18 @@ add(Master, Element,
 %%--------------------------------------------------------------------
 -spec remove(Master::pos_integer(),
              Element::term(),
-             Set::vpnset()) ->
-                    Set1::vpnset().
+             Set::vpnset2()) ->
+                    Set1::vpnset2().
 remove(Master, Element,
-       Set = #vpnset{values = Values,
-                     size = Size}) when is_integer(Master),
-                                  Master > 0,
-                                  Master =< Size ->
+       Set = #vpnset2{values = Values}) ->
     case lists:keytake(Element, 1, Values) of
         false ->
             Set;
         {value, {_, Cnt}, Values1} ->
-            case vpncounter:value(Cnt) of
+            case vpncounter2:value(Cnt) of
                 X when X > 0 ->
-                    #vpnset{
-                       size = Size,
-                       values = [{Element, vpncounter:dec(Master, 1, Cnt)} | Values1]};
+                    #vpnset2{
+                       values = [{Element, vpncounter2:dec(Master, 1, Cnt)} | Values1]};
                 _ ->
                     Set
             end
@@ -103,12 +94,11 @@ remove(Master, Element,
 %% negative counters!
 %% @end
 %%--------------------------------------------------------------------
--spec merge(VPNset0::vpnset(), VPNset1::vpnset()) -> VPNsetM::vpnset().
-merge(#vpnset{size = Size, values = Values1},
-      #vpnset{size = Size, values = Values2}) ->
-    #vpnset{size = Size,
-            values = merge_values(lists:keysort(1, Values1),
-                                  lists:keysort(1, Values2), [])}.
+-spec merge(Vpnset20::vpnset2(), Vpnset21::vpnset2()) -> Vpnset2M::vpnset2().
+merge(#vpnset2{values = Values1},
+      #vpnset2{values = Values2}) ->
+    #vpnset2{values = merge_values(lists:keysort(1, Values1),
+                                   lists:keysort(1, Values2), [])}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -116,11 +106,11 @@ merge(#vpnset{size = Size, values = Values1},
 %% element with a count of zero or less.
 %% @end
 %%--------------------------------------------------------------------
--spec value(VPNset::vpnset()) -> [Element::term()].
-value(#vpnset{values = Values}) ->
+-spec value(Vpnset2::vpnset2()) -> [Element::term()].
+value(#vpnset2{values = Values}) ->
     ordsets:from_list(
       lists:foldl(fun ({V, Cnt}, Acc) ->
-                          case vpncounter:value(Cnt) of
+                          case vpncounter2:value(Cnt) of
                               X when X > 0 ->
                                   [V | Acc];
                               _ ->
@@ -149,7 +139,7 @@ merge_values(R1,
 
 merge_values([{V, Cnt1} | R1],
              [{V, Cnt2} | R2], R) ->
-    merge_values(R1, R2, [{V, vpncounter:merge(Cnt1, Cnt2)} | R]);
+    merge_values(R1, R2, [{V, vpncounter2:merge(Cnt1, Cnt2)} | R]);
 
 merge_values([{_V1, _} = E1 | R1],
              [{_V2, _} | _] = R2, R) when _V1 < _V2 ->
@@ -189,13 +179,13 @@ op(ab, remove, E, C1, C2, Check) ->
 apply_ops(Ops) ->
     lists:foldl(fun({T, O, E}, {A, B, C}) ->
                         op(T, O, E, A, B, C)
-                end, {new(2), new(2), new(2)}, Ops).
+                end, {new(), new(), new()}, Ops).
 
 %% A list of opperations and targets.
 targets() ->
     list({oneof([a, b, ab]), oneof([add, remove]), pos_integer()}).
 
-prop_vpnset() ->
+prop_vpnset2() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
