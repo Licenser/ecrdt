@@ -76,34 +76,9 @@ remove({ID, Hash},
             Reply
     end.
 
-
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-set_elements(Elements, ROT) ->
-    Newest = case Elements of
-                 [] ->
-                     undefined;
-                 [{N, _} | _] ->
-                     N;
-                 [#rot{newest = N} | _] ->
-                     N
-             end,
-    case length(Elements) of
-        Cnt when Cnt =:= ROT#rot.size ->
-            ROT1 = ROT#rot{
-                     newest = Newest,
-                     count = Cnt,
-                     elements = Elements},
-            ROT1#rot{hash = hash(ROT1)};
-        Cnt ->
-            ROT#rot{
-              newest = Newest,
-              hash = undefined,
-              count = Cnt,
-              elements = Elements}
-    end.
 
 remove(_ID, _Hash, [], _Acc) ->
     undefined2;
@@ -182,8 +157,10 @@ clone(ROT) ->
       elements = [],
       count = 0}.
 
+
 branch(E, ROT) ->
-    ROT1 = add(E, clone(ROT)),
+    ROT0 = clone(ROT),
+    ROT1 = add(E, ROT0#rot{leave = true}),
     [#rot{newest = N} |_] = Es = ordsets:from_list([ROT, ROT1]),
     Res = clone(ROT),
     Res#rot{leave = false,
@@ -316,6 +293,31 @@ do_add(E, ROT1, Rest, []) ->
 ae(E, S) ->
     ordsets:add_element(E, S).
 
+
+set_elements(Elements, ROT) ->
+    Newest = case Elements of
+                 [] ->
+                     undefined;
+                 [{N, _} | _] ->
+                     N;
+                 [#rot{newest = N} | _] ->
+                     N
+             end,
+    case length(Elements) of
+        Cnt when Cnt =:= ROT#rot.size ->
+            ROT1 = ROT#rot{
+                     newest = Newest,
+                     count = Cnt,
+                     elements = Elements},
+            ROT1#rot{hash = hash(ROT1)};
+        Cnt ->
+            ROT#rot{
+              newest = Newest,
+              hash = undefined,
+              count = Cnt,
+              elements = Elements}
+    end.
+
 -ifdef(TEST).
 
 %% Applies the list of opperaitons to three empty sets.
@@ -342,5 +344,6 @@ propper_test() ->
 A = rot:add({now(), 4}, rot:add({now(), 3}, rot:add({now(), 2}, rot:add({now(), 1}, rot:new(now(), 2))))).
 [F1, F2] = rot:full(A).
 rot:remove(F1, A).
-rot:remove(F2, A).
+{_, A1} = rot:remove(F2, A).
+rot:add({now(), 5}, A1).
 -endif.
