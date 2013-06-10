@@ -1,4 +1,4 @@
- %%%-------------------------------------------------------------------
+%%%-------------------------------------------------------------------
 %%% @author Heinz Nikolaus Gies <heinz@licenser.net>
 %%% @copyright (C) 2013, Heinz Nikolaus Gies
 %%% @doc
@@ -21,7 +21,7 @@
               hash = undefined :: undefined | binary(),
               elements = [] :: []}).
 
--export([new/1, new/2, add/2, value/1, full/1]).
+-export([new/1, new/2, add/2, value/1, full/1, remove/2]).
 
 new(ID) ->
     #rot{newest = ID}.
@@ -52,14 +52,74 @@ full(#rot{leave = true,
           newest = N,
           hash = H}) ->
     full([{N, H}], []);
+
 full(#rot{elements = Es}) ->
     full(Es, []).
 
+remove({_ID, _Hash},
+       #rot{newest = _N}) when _ID < _N ->
+    undefined1;
+remove({ID, Hash},
+       ROT = #rot{leave = true,
+                  newest = ID,
+                  hash = Hash}) ->
+    {clone(ROT), value(ROT)};
+remove({_ID, _Hash},
+       #rot{leave = true}) ->
+    undefined1;
+remove({ID, Hash},
+       ROT = #rot{elements = Elements}) ->
+    case remove(ID, Hash, Elements, []) of
+        {Vs, Es} ->
+            {Vs, set_elements(Es, ROT)};
+        Reply ->
+            Reply
+    end.
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+set_elements(Elements, ROT) ->
+    Newest = case Elements of
+                 [] ->
+                     undefined;
+                 [{N, _} | _] ->
+                     N;
+                 [#rot{newest = N} | _] ->
+                     N
+             end,
+    case length(Elements) of
+        Cnt when Cnt =:= ROT#rot.size ->
+            ROT1 = ROT#rot{
+                     newest = Newest,
+                     count = Cnt,
+                     elements = Elements},
+            ROT1#rot{hash = hash(ROT1)};
+        Cnt ->
+            ROT#rot{
+              newest = Newest,
+              hash = undefined,
+              count = Cnt,
+              elements = Elements}
+    end.
+
+remove(_ID, _Hash, [], _Acc) ->
+    undefined2;
+remove(_ID, _Hash,
+       [#rot{newest = _N}
+        | _Rs], _Acc) when _ID < _N ->
+    undefined3;
+remove(ID, Hash,
+       [R = #rot{newest = ID,
+                 hash = Hash}
+        | Rs], Acc) ->
+    {value(R), ordsets:from_list(Acc ++ Rs)};
+remove(ID, Hash, [R | Rs], Acc) ->
+    remove(ID, Hash, Rs, [R | Acc]).
+
+
 full([], Acc) ->
     Acc;
 full([#rot{leave = true,
@@ -279,7 +339,8 @@ propper_test() ->
 -endif.
 
 -ifdef(BLA).
-test() ->
-    rot:add({now(), 4}, rot:add({now(), 3}, rot:add({now(), 2}, rot:add({now(), 1}, rot:new(now(), 2))))).
-
+A = rot:add({now(), 4}, rot:add({now(), 3}, rot:add({now(), 2}, rot:add({now(), 1}, rot:new(now(), 2))))).
+[F1, F2] = rot:full(A).
+rot:remove(F1, A).
+rot:remove(F2, A).
 -endif.
