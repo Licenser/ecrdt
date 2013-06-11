@@ -18,8 +18,8 @@
 
 -export([new/0, add/2, add/3, remove/2, merge/2, value/1, from_list/1, gc/1]).
 
--record(orset2, {values :: [],
-                 seen :: []}).
+-record(orset2, {values :: [{Element::term(), ID::term()}],
+                 seen :: [ID::term()]}).
 
 -opaque orset2() :: #orset2{}.
 
@@ -37,7 +37,7 @@
 -spec new() -> orset2().
 new() ->
     #orset2{values = [],
-           seen = []}.
+            seen = []}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -49,7 +49,7 @@ new() ->
 from_list(L) ->
     Values = [ {E, ecrdt:id()} || E <- L],
     #orset2{values = Values,
-            seen = ordsets:from_list([ID || {ID, _} <- Values])}.
+            seen = ordsets:from_list([ID || {_, ID} <- Values])}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -83,7 +83,7 @@ add(ID, Element, ORSet = #orset2{values = Values, seen = Seen}) ->
 %%--------------------------------------------------------------------
 -spec remove(Element::term(), ORSet::orset2()) -> ORSet1::orset2().
 remove(Element, ORSet = #orset2{values = Values}) ->
-    ORSet#orset2{values = [E || {_, _V} = E <- Values, _V =/= Element]}.
+    ORSet#orset2{values = [E || {_V, _} = E <- Values, _V =/= Element]}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -97,8 +97,10 @@ merge(ORSet0,
 
 merge_sets(ORSet, [], []) ->
     ORSet;
-merge_sets(ORSet = #orset2{values = Values}, [], [ID | R]) ->
-    merge_sets(ORSet#orset2{values = lists:keydelete(ID, 2, Values)}, [], R);
+merge_sets(ORSet = #orset2{values = Values,
+                           seen = Seen}, [], [ID | R]) ->
+    merge_sets(ORSet#orset2{values = lists:keydelete(ID, 2, Values),
+                            seen = ordsets:add_element(ID, Seen)}, [], R);
 merge_sets(ORSet, [{Element, ID} | R], Seen) ->
     merge_sets(add(ID, Element, ORSet), R, lists:delete(ID, Seen)).
 
@@ -122,7 +124,7 @@ value(ORSet) ->
 -spec gc(ORSet::orset2()) -> ORSetGCed::orset2().
 gc(#orset2{values = Values}) ->
     #orset2{values = Values,
-            seen = [ID || {ID, _} <-Values]}.
+            seen = [ID || {_, ID} <-Values]}.
 
 %%%===================================================================
 %%% Internal functions
@@ -183,10 +185,13 @@ prop_orset2() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
-                value(C) =:= value(merge(A, B))
+                value(C) =:= value(merge(merge(A, B), C)) andalso
+                    value(C) =:= value(merge(merge(B, A), C)) andalso
+                    value(merge(merge(A, B), C)) =:= value(merge(merge(B, A), C))
             end).
 
 propper_test() ->
-    ?assertEqual([], proper:module(?MODULE, [{to_file, user}, long_result])).
+    ?assertEqual([], proper:module(?MODULE,
+                                   [{to_file, user}, long_result, {numtests, 500}])).
 
 -endif.
