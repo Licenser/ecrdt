@@ -2,7 +2,13 @@
 %%% @author Heinz Nikolaus Gies <heinz@licenser.net>
 %%% @copyright (C) 2013, Heinz Nikolaus Gies
 %%% @doc
+%%% This is not a general purpose data structure, it imeplments a set
+%%% that is supposed to take mostly ordered data, in the form of
+%%% {ID, Element}, where the ID ideally is some kind of timestamp.
 %%%
+%%% The datatype is supposed to work as a tool for asyncronous
+%%% garbage collection, with older entries slowly timing out with
+%%% an agreement about what to delete.
 %%% @end
 %%% Created :  9 Jun 2013 by Heinz Nikolaus Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
@@ -21,16 +27,37 @@
               hash = undefined :: undefined | binary(),
               elements = [] :: []}).
 
+-opaque rot() :: #rot{}.
+
+-export_type([rot/0]).
+
 -export([new/1, new/2, add/2, value/1, full/1, remove/2]).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new ROT with a initial ID and default bucket size of 100.
+%% @end
+%%--------------------------------------------------------------------
+-spec new(ID::term()) -> ROT::rot().
 new(ID) ->
     #rot{newest = ID}.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new ROT with a initial ID and a given bucket Size.
+%% @end
+%%--------------------------------------------------------------------
+-spec new(ID::term(), Size::pos_integer()) -> ROT::rot().
 new(ID, Size) ->
     #rot{newest = ID,
          size = Size}.
 
-
+%%--------------------------------------------------------------------
+%% @doc
+%% Adds a element to the ROT.
+%% @end
+%%--------------------------------------------------------------------
+-spec add({ID::term(), Data::term()}, ROT::rot()) -> ROT::rot().
 add(E, ROT) ->
     case radd(E, ROT) of
         {ok, Res} ->
@@ -39,26 +66,44 @@ add(E, ROT) ->
             branch(E1, ROT1)
     end.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Gets the values stored in the rot.
+%% @end
+%%--------------------------------------------------------------------
+-spec value(ROT::rot()) -> [{ID::term(), Value::term()}].
 value(#rot{leave = true,
            elements = Es}) ->
     Es;
-
 value(#rot{elements = [E]}) ->
     ordsets:from_list(value(E));
 value(#rot{elements = [E0 | Es]}) ->
     ordsets:from_list(value(Es, value(E0))).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Lists all full buckets with ID and content Hash for compairison.
+%% @end
+%%--------------------------------------------------------------------
+-spec full(ROT::rot()) -> [{ID::term(), Hash::binary()}].
 full(#rot{leave = true,
           newest = N,
           hash = H}) ->
     full([{N, H}], []);
-
 full(#rot{elements = Es}) ->
     full(Es, []).
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Deletes a bucket with a given Id and Hash.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove({ID::term(), Hash::binary()}, ROT::rot()) ->
+                    undefined |
+                    {[Value::term()], ROT::rot()}.
 remove({_ID, _Hash},
        #rot{newest = _N}) when _ID < _N ->
-    undefined1;
+    undefined;
 remove({ID, Hash},
        ROT = #rot{leave = true,
                   newest = ID,
@@ -66,7 +111,7 @@ remove({ID, Hash},
     {clone(ROT), value(ROT)};
 remove({_ID, _Hash},
        #rot{leave = true}) ->
-    undefined1;
+    undefined;
 remove({ID, Hash},
        ROT = #rot{elements = Elements}) ->
     case remove(ID, Hash, Elements, []) of
@@ -81,11 +126,11 @@ remove({ID, Hash},
 %%%===================================================================
 
 remove(_ID, _Hash, [], _Acc) ->
-    undefined2;
+    undefined;
 remove(_ID, _Hash,
        [#rot{newest = _N}
         | _Rs], _Acc) when _ID < _N ->
-    undefined3;
+    undefined;
 remove(ID, Hash,
        [R = #rot{newest = ID,
                  hash = Hash}
@@ -290,6 +335,10 @@ do_add(E, ROT1, Rest, []) ->
             {branch, [ROTR], E1, []}
     end.
 
+%%%===================================================================
+%%% Helper Functions
+%%%===================================================================
+
 ae(E, S) ->
     ordsets:add_element(E, S).
 
@@ -317,6 +366,9 @@ set_elements(Elements, ROT) ->
               count = Cnt,
               elements = Elements}
     end.
+%%%===================================================================
+%%% Tests
+%%%===================================================================
 
 -ifdef(TEST).
 
