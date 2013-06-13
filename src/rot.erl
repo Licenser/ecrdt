@@ -38,7 +38,12 @@
 
 -export_type([rot/0, id/2, id/0, hash/0, hash/1]).
 
--export([new/1, new/2, add/2, value/1, full/1, remove/2]).
+-export([new/1, new/2,
+         add/2,
+         value/1,
+         full/1,
+         merge/2,
+         remove/2]).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -108,9 +113,13 @@ full(#rot{elements = Es}) ->
 %% Deletes a bucket with a given Id and Hash.
 %% @end
 %%--------------------------------------------------------------------
+
 -spec remove({ID::term(), Hash::binary()}, ROT::rot()) ->
                     undefined |
                     {[Value::term()], ROT::rot()}.
+remove(IDs, ROT) when is_list(IDs) ->
+    lists:foldl(fun remove/2, ROT, IDs);
+
 remove({_ID, _Hash},
        #rot{newest = _N}) when _ID < _N ->
     undefined;
@@ -130,6 +139,10 @@ remove({ID, Hash},
         Reply ->
             Reply
     end.
+
+merge(ROTA, ROTB) ->
+    ROTB1 = remove(full(ROTA), ROTB),
+    lists:foldl(fun add/2, ROTA, value(ROTB1)).
 
 %%%===================================================================
 %%% Internal functions
