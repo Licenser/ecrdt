@@ -166,14 +166,29 @@ op(ab, add, E, C1, C2, Check) ->
     ID = 1,
     {add(ID, E, C1), add(ID, E, C2), add(ID, E, Check)};
 op(a, remove, E, C1, C2, Check) ->
-    ID = 1,
-    {remove(ID, E, C1), C2, remove(ID, E, Check)};
+    case lists:member(E, value(C1)) of
+        true ->
+            ID = 1,
+            {remove(ID, E, C1), C2, remove(ID, E, Check)};
+        false ->
+            {C1, C2, Check}
+    end;
 op(b, remove, E, C1, C2, Check) ->
-    ID = 2,
-    {C1, remove(ID, E, C2), remove(ID, E, Check)};
+    case lists:member(E, value(C2)) of
+        true ->
+            ID = 2,
+            {C1, remove(ID, E, C2), remove(ID, E, Check)};
+        false ->
+            {C1, C2, Check}
+    end;
 op(ab, remove, E, C1, C2, Check) ->
-    ID = 1,
-    {remove(ID, E, C1), remove(ID, E, C2), remove(ID, E, Check)}.
+    case {lists:member(E, value(C1)), lists:member(E, value(C2))} of
+        {true, true} ->
+            ID = 1,
+            {remove(ID, E, C1), remove(ID, E, C2), remove(ID, E, Check)};
+        _ ->
+            {C1, C2, Check}
+    end.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->

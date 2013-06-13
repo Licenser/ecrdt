@@ -27,9 +27,16 @@
               hash = undefined :: undefined | binary(),
               elements = [] :: []}).
 
+-type id(TimerType, ValueType) :: {Timestamp::TimerType, Value::ValueType}.
+-type id() :: id(erlang:timestamp(), term()).
+
+-type hash(IDType) :: {ID::IDType, Hash::binary()}.
+-type hash() :: hash(term()).
 -opaque rot() :: #rot{}.
 
--export_type([rot/0]).
+
+
+-export_type([rot/0, id/2, id/0, hash/0, hash/1]).
 
 -export([new/1, new/2, add/2, value/1, full/1, remove/2]).
 
@@ -85,13 +92,16 @@ value(#rot{elements = [E0 | Es]}) ->
 %% Lists all full buckets with ID and content Hash for compairison.
 %% @end
 %%--------------------------------------------------------------------
--spec full(ROT::rot()) -> [{ID::term(), Hash::binary()}].
+-spec full(ROT::rot()) -> [hash()].
+full(#rot{leave = true,
+          hash = undefined}) ->
+    [];
 full(#rot{leave = true,
           newest = N,
           hash = H}) ->
-    full([{N, H}], []);
+        [{N, H}];
 full(#rot{elements = Es}) ->
-    full(Es, []).
+    ordsets:from_list(full(Es, [])).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -108,7 +118,7 @@ remove({ID, Hash},
        ROT = #rot{leave = true,
                   newest = ID,
                   hash = Hash}) ->
-    {clone(ROT), value(ROT)};
+    {value(ROT), clone(ROT)};
 remove({_ID, _Hash},
        #rot{leave = true}) ->
     undefined;
@@ -219,9 +229,9 @@ radd(E,
           leave = true,
           elements = Es} = ROT) when Cnt < Size ->
     [{Newest, _} | _] = Es1 = ordsets:add_element(E, Es),
-    Cnt1 = Cnt + 1,
+    Cnt1 = length(Es1),
     ROT1 = ROT#rot{newest = Newest,
-                   count = Cnt + 1,
+                   count = Cnt1,
                    elements = Es1},
     Hash = case Cnt1 of
                S when S =:= Size ->
@@ -235,11 +245,16 @@ radd(E, #rot{newest = _Newest,
              leave = true,
              elements = Es} = ROT) ->
     [F | Es1] = ordsets:add_element(E, Es),
-    [{Newest, _} | _ ] = Es1,
-    ROT1 = ROT#rot{newest = Newest,
-                   elements = Es1},
-    Hash = hash(ROT1),
-    {branch, ROT1#rot{hash = Hash}, F};
+    case Es1 of
+        [{Newest, _} | _ ] ->
+            ROT1 = ROT#rot{newest = Newest,
+                           count = length(Es1),
+                           elements = Es1},
+            Hash = hash(ROT1),
+            {branch, ROT1#rot{hash = Hash}, F};
+        _ ->
+            io:format("oops: ~p~n", [ROT])
+    end;
 
 radd(E, ROT = #rot{elements = Es,
                    leave = false}) ->
@@ -268,7 +283,9 @@ radd(E, ROT = #rot{elements = Es,
                                  count = Cnt}}
             end;
         {branch, Es1, E1, []} ->
-            ROT1 = ROT#rot{elements = Es1},
+            ROT1 = ROT#rot{
+                     elements = Es1,
+                     count = length(Es1)},
             Hash = hash(ROT1),
             {branch, ROT1#rot{hash = Hash}, E1}
     end.
@@ -297,12 +314,12 @@ add_to_elements(E0,
             {ok, [A0 |Rest],  Acc1};
         {ok, Rest, []} ->
             {ok, Rest,  []};
-        {branch, Rest, E, [A0 | Acc]} ->
+        {branch, Rest, E, [A0 | Acc1]} ->
             case radd(E, A0) of
                 {ok, A1} ->
-                    {ok, ae(A1, Rest), Acc};
+                    {ok, ae(A1, Rest), Acc1};
                 {branch, A1, E1} ->
-                    {branch, ae(A1, Rest), E1, Acc}
+                    {branch, ae(A1, Rest), E1, Acc1}
             end;
         {branch, Rest, E, []} ->
             case radd(E, clone(ROT1)) of
