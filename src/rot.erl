@@ -115,52 +115,66 @@ full(#rot{elements = Es}) ->
 %%--------------------------------------------------------------------
 
 -spec remove({ID::term(), Hash::binary()}, ROT::rot()) ->
-                    undefined |
                     {[Value::term()], ROT::rot()}.
-remove(IDs, ROT) when is_list(IDs) ->
-    lists:foldl(fun remove/2, ROT, IDs);
+remove([], ROT) ->
+    {[], ROT};
+remove([ID0 | IDs], ROT) when is_list(IDs) ->
+    lists:foldl(fun (HashID, {Vs, AccROT}) ->
+                        {VS1, AccROT1} =  remove(HashID, AccROT),
+                        {VS1 ++ Vs, AccROT1}
+                end, remove(ID0, ROT), IDs);
 
 remove({_ID, _Hash},
-       #rot{newest = _N}) when _ID < _N ->
-    undefined;
+       ROT = #rot{newest = _N}) when _ID < _N ->
+    {[], ROT};
 remove({ID, Hash},
        ROT = #rot{leave = true,
                   newest = ID,
                   hash = Hash}) ->
     {value(ROT), clone(ROT)};
 remove({_ID, _Hash},
-       #rot{leave = true}) ->
-    undefined;
+       ROT = #rot{leave = true}) ->
+    {[], ROT};
 remove({ID, Hash},
        ROT = #rot{elements = Elements}) ->
-    case remove(ID, Hash, Elements, []) of
+    case remove(ID, Hash, Elements, [], []) of
+        {Vs, [ROT1 = #rot{leave = true}]} ->
+            {Vs, ROT1};
+        {Vs, []} ->
+            ROT1 = set_elements([], ROT),
+            {Vs, ROT1#rot{leave = true}};
         {Vs, Es} ->
             {Vs, set_elements(Es, ROT)};
-        Reply ->
-            Reply
+        _ ->
+            {[], ROT}
     end.
 
 merge(ROTA, ROTB) ->
-    ROTB1 = remove(full(ROTA), ROTB),
+    {_, ROTB1} = remove(full(ROTA), ROTB),
     lists:foldl(fun add/2, ROTA, value(ROTB1)).
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-remove(_ID, _Hash, [], _Acc) ->
-    undefined;
+remove(_ID, _Hash, [], Acc, Vs) ->
+    {Vs, ordsets:from_list(Acc)};
 remove(_ID, _Hash,
        [#rot{newest = _N}
-        | _Rs], _Acc) when _ID < _N ->
-    undefined;
+        | _Rs] = In, Acc, Vs) when _ID < _N ->
+    {Vs, ordsets:from_list(In ++ Acc)};
 remove(ID, Hash,
        [R = #rot{newest = ID,
                  hash = Hash}
-        | Rs], Acc) ->
+        | Rs], Acc, _Vs) ->
     {value(R), ordsets:from_list(Acc ++ Rs)};
-remove(ID, Hash, [R | Rs], Acc) ->
-    remove(ID, Hash, Rs, [R | Acc]).
+remove(ID, Hash, [R | Rs], Acc, _Vs) ->
+    case remove({ID, Hash}, R) of
+        {Values, #rot{elements = []}} ->
+            remove(ID, Hash, Rs, Acc, Values);
+        {Values, R1} ->
+            remove(ID, Hash, Rs, [R1 | Acc], Values)
+    end.
 
 
 full([], Acc) ->
@@ -383,6 +397,7 @@ set_elements(Elements, ROT) ->
                      N
              end,
     case length(Elements) of
+
         Cnt when Cnt =:= ROT#rot.size ->
             ROT1 = ROT#rot{
                      newest = Newest,

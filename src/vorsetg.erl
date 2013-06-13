@@ -83,8 +83,9 @@ add(Element, ORSet) ->
 remove(Element, ORSet = #vorsetg{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {_, E1} <- raw_value(ORSet),
                                E1 =:= Element],
+    Now = os:timestamp(),
     Removes1 = lists:foldl(fun(R, Rs) ->
-                                   rot:add(R, Rs)
+                                   rot:add({Now, R}, Rs)
                            end, Removes, CurrentExisting),
     ORSet#vorsetg{removes = Removes1}.
 
@@ -117,7 +118,7 @@ merge(ROTA = #vorsetg{gced = GCedA},
 %%--------------------------------------------------------------------
 -spec value(ORSet::vorsetg()) -> [Element::term()].
 value(ORSet) ->
-    ordsets:from_list([E || {E, _} <- raw_value(ORSet)]).
+    ordsets:from_list([E || {_, E} <- raw_value(ORSet)]).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -133,15 +134,11 @@ gc(HashID,
    #vorsetg{
       adds = Adds,
       removes = Removes,
-      gced = GCed} = ORSet) ->
-    case rot:remove(HashID, Removes) of
-        undefined ->
-            ORSet;
-        {Values, Removes1} ->
-            #vorsetg{adds = ordsets:subtract(Adds, Values),
-                     gced = ordsets:add(HashID, GCed),
-                     removes = Removes1}
-    end.
+      gced = GCed}) ->
+    {Values, Removes1} = rot:remove(HashID, Removes),
+    #vorsetg{adds = ordsets:subtract(Adds, Values),
+             gced = ordsets:add_element(HashID, GCed),
+             removes = Removes1}.
 
 gcable(#vorsetg{removes = Removes}) ->
     rot:full(Removes).
@@ -153,7 +150,7 @@ gcable(#vorsetg{removes = Removes}) ->
 -spec raw_value(ORSet::vorsetg()) -> [{Element::term(), ID::term()}].
 raw_value(#vorsetg{adds = Adds,
                    removes = Removes}) ->
-    ordsets:subtract(Adds, rot:value(Removes)).
+    ordsets:subtract(Adds, [E || {_, E} <- rot:value(Removes)]).
 
 %%%===================================================================
 %%% Tests
@@ -173,40 +170,43 @@ gcable(A, B, C, Latest) ->
     [G || G = {T, _} <- GC, T < Latest].
 
 
-op(a, add, E, C1, C2, Check, Now) ->
+op(T, Op, E, C1, C2, Check, Now) ->
+    op(?MODULE, T, Op, E, C1, C2, Check, Now).
+
+op(Mod, a, add, E, C1, C2, Check, Now) ->
     ID = ecrdt:id(),
-    {add(ID, E, C1), C2, add(ID, E, Check), Now};
-op(b, add, E, C1, C2, Check, Now) ->
+    {Mod:add(ID, E, C1), C2, Mod:add(ID, E, Check), Now};
+op(Mod, b, add, E, C1, C2, Check, Now) ->
     ID = ecrdt:id(),
-    {C1, add(ID, E, C2), add(ID, E, Check), Now};
-op(ab, add, E, C1, C2, Check, Now) ->
+    {C1, Mod:add(ID, E, C2), Mod:add(ID, E, Check), Now};
+op(Mod, ab, add, E, C1, C2, Check, Now) ->
     ID = ecrdt:id(),
-    {add(ID, E, C1), add(ID, E, C2), add(ID, E, Check), Now};
-op(a, remove, E, C1, C2, Check, Now) ->
-    case lists:member(E, value(C1)) of
+    {Mod:add(ID, E, C1), Mod:add(ID, E, C2), Mod:add(ID, E, Check), Now};
+op(Mod, a, remove, E, C1, C2, Check, Now) ->
+    case lists:member(E, Mod:value(C1)) of
         true ->
-            {remove(E, C1), C2, remove(E, Check), Now};
+            {Mod:remove(E, C1), C2, Mod:remove(E, Check), Now};
         false ->
             {C1, C2, Check, Now}
     end;
-op(b, remove, E, C1, C2, Check, Now) ->
-    case lists:member(E, value(C2)) of
+op(Mod, b, remove, E, C1, C2, Check, Now) ->
+    case lists:member(E, Mod:value(C2)) of
         true ->
-            {C1, remove(E, C2), remove(E, Check), Now};
+            {C1, Mod:remove(E, C2), Mod:remove(E, Check), Now};
         false ->
             {C1, C2, Check, Now}
     end;
-op(ab, remove, E, C1, C2, Check, Now) ->
-    case {lists:member(E, value(C1)), lists:member(E, value(C2))} of
+op(Mod, ab, remove, E, C1, C2, Check, Now) ->
+    case {lists:member(E, Mod:value(C1)), lists:member(E, Mod:value(C2))} of
         {true, true} ->
-            {remove(E, C1), remove(E, C2), remove(E, Check), Now};
+            {Mod:remove(E, C1), Mod:remove(E, C2), Mod:remove(E, Check), Now};
         _ ->
             {C1, C2, Check, Now}
     end.
 
 %% Applies the list of opperaitons to three empty sets.
 apply_ops(Ops) ->
-    Obj = new(10),
+    Obj = new(3),
     lists:foldl(fun({T, O, E}, {A, B, C, M}) ->
                         op(T, O, E, A, B, C, M);
                    (merge, {A, B, C, _}) ->
@@ -234,9 +234,7 @@ prop_vorsetg() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C, _} = apply_ops(Ts),
-                Res = value(C) =:= value(merge(merge(A, B), C)) andalso
-                    value(C) =:= value(merge(merge(B, A), C)) andalso
-                    value(merge(merge(A, B), C)) =:= value(merge(merge(B, A), C)),
+                Res = value(merge(merge(B, A), C)) =:= value(merge(merge(A, B), C)),
                 ?WHENFAIL(
                    ?debugFmt("~nA = ~p.~nB = ~p.~nC = ~p.~n", [A, B, C]),
                    Res =:= true
@@ -250,4 +248,48 @@ propper_test() ->
                                 long_result,
                                 {numtests, 10000}])).
 
+oneof_(L) ->
+    lists:nth(random:uniform(length(L)), L).
+
+op(Module, {A, B, C, Now}, Target, Action, Value) ->
+    op(Module, Target, Action, Value, A, B, C, Now).
+
+op_fun(_, {A, B}) ->
+    case random:uniform(1000) of
+        X when X > 200 -> % ADd Remove
+            {op(?MODULE, A, oneof_([a, b, ab]), oneof_([add, remove]), X),
+             op(vorset, B, oneof_([a, b, ab]), oneof_([add, remove]), X)};
+        _X when _X > 50 -> % Merge
+            {A1, A2, A3, _} = A,
+            Merged = merge(A1, merge(A2, A3)),
+            {{Merged, Merged, Merged, now()}, B};
+        _X -> % GC
+            {A1, A2, A3, Now} = A,
+            case oneof_([a, b, ab]) of
+                a ->
+                    GC = gcable(A1, A3, Now),
+                    {{gc_all(A1, GC), A2, gc_all(A3, GC), Now}, B};
+                b ->
+                    GC = gcable(A2, A3, Now),
+                    {{A1, gc_all(A2, GC), gc_all(A3, GC), Now}, B};
+                ab ->
+                    GC = gcable(A1, A2, A3, Now),
+                    {{gc_all(A1, GC), gc_all(A2, GC), gc_all(A3, GC), Now}, B}
+            end
+    end.
+
+size_test() ->
+    random:seed(now()),
+    A = new(10),
+    B = vorset:new(),
+    {{A1, A2, A3, _},
+     {B1, B2, B3, _}} =
+        lists:foldl(fun op_fun/2,
+                    {{A, A, A, now()}, {B, B, B, now()}},
+                    lists:seq(1, 1000)),
+    AM = merge(A1, merge(A2, A3)),
+    BM = vorset:merge(B1, vorset:merge(B2, B3)),
+    ?assertEqual(value(AM), vorset:value(BM)).
+
 -endif.
+

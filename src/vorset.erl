@@ -18,12 +18,12 @@
 
 -export([new/0, add/2, add/3, remove/2, merge/2, value/1, from_list/1, gc/1]).
 
--record(orset, {adds :: vgset:vgset(),
-                removes :: vgset:vgset()}).
+-record(vorset, {adds :: vgset:vgset(),
+                 removes :: vgset:vgset()}).
 
--opaque orset() :: #orset{}.
+-opaque vorset() :: #vorset{}.
 
--export_type([orset/0]).
+-export_type([vorset/0]).
 
 %%%===================================================================
 %%% Implementation
@@ -34,9 +34,9 @@
 %% Creates a new empty OR Set.
 %% @end
 %%--------------------------------------------------------------------
--spec new() -> orset().
+-spec new() -> vorset().
 new() ->
-    #orset{adds = vgset:new(),
+    #vorset{adds = vgset:new(),
            removes = vgset:new()}.
 
 %%--------------------------------------------------------------------
@@ -45,10 +45,10 @@ new() ->
 %% list.
 %% @end
 %%--------------------------------------------------------------------
--spec from_list(list()) -> orset().
+-spec from_list(list()) -> vorset().
 from_list(L) ->
     ID = ecrdt:id(),
-    #orset{adds = vgset:from_list([ {E, ID} || E <- L]),
+    #vorset{adds = vgset:from_list([ {E, ID} || E <- L]),
            removes = vgset:new()}.
 
 %%--------------------------------------------------------------------
@@ -56,9 +56,9 @@ from_list(L) ->
 %% Adds an element to the OR set with a given master ID.
 %% @end
 %%--------------------------------------------------------------------
--spec add(ID::term(), Element::term(), ORSet::orset()) -> ORSet1::orset().
-add(ID, Element, ORSet = #orset{adds = Adds}) ->
-    ORSet#orset{adds = vgset:add({Element, ID}, Adds)}.
+-spec add(ID::term(), Element::term(), ORSet::vorset()) -> ORSet1::vorset().
+add(ID, Element, ORSet = #vorset{adds = Adds}) ->
+    ORSet#vorset{adds = vgset:add({Element, ID}, Adds)}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -66,9 +66,9 @@ add(ID, Element, ORSet = #orset{adds = Adds}) ->
 %% provided by ecrdt:id().
 %% @end
 %%--------------------------------------------------------------------
--spec add(Element::term(), ORSet::orset()) -> ORSet1::orset().
-add(Element, ORSet = #orset{adds = Adds}) ->
-    ORSet#orset{adds = vgset:add({Element, ecrdt:id()}, Adds)}.
+-spec add(Element::term(), ORSet::vorset()) -> ORSet1::vorset().
+add(Element, ORSet = #vorset{adds = Adds}) ->
+    ORSet#vorset{adds = vgset:add({Element, ecrdt:id()}, Adds)}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -76,25 +76,25 @@ add(Element, ORSet = #orset{adds = Adds}) ->
 %% putting them in the list of removed items.
 %% @end
 %%--------------------------------------------------------------------
--spec remove(Element::term(), ORSet::orset()) -> ORSet1::orset().
-remove(Element, ORSet = #orset{removes = Removes}) ->
+-spec remove(Element::term(), ORSet::vorset()) -> ORSet1::vorset().
+remove(Element, ORSet = #vorset{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {E1, _} <- raw_value(ORSet), E1 =:= Element],
     Removes1 = lists:foldl(fun(R, Rs) ->
                                   vgset:add(R, Rs)
                           end, Removes, CurrentExisting),
-    ORSet#orset{removes = Removes1}.
+    ORSet#vorset{removes = Removes1}.
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Merges two OR Sets by taking the union of adds and removes.
 %% @end
 %%--------------------------------------------------------------------
--spec merge(ORSet0::orset(), ORSet1::orset()) -> ORSetM::orset().
-merge(#orset{adds = Adds0,
+-spec merge(ORSet0::vorset(), ORSet1::vorset()) -> ORSetM::vorset().
+merge(#vorset{adds = Adds0,
              removes = Removes0},
-      #orset{adds = Adds1,
+      #vorset{adds = Adds1,
              removes = Removes1}) ->
-    #orset{adds = vgset:merge(Adds0, Adds1),
+    #vorset{adds = vgset:merge(Adds0, Adds1),
            removes = vgset:merge(Removes0, Removes1)}.
 
 %%--------------------------------------------------------------------
@@ -103,7 +103,7 @@ merge(#orset{adds = Adds0,
 %% substract of adds and removes then eleminating the ID field.
 %% @end
 %%--------------------------------------------------------------------
--spec value(ORSet::orset()) -> [Element::term()].
+-spec value(ORSet::vorset()) -> [Element::term()].
 value(ORSet) ->
     ordsets:from_list([E || {E, _} <- raw_value(ORSet)]).
 
@@ -116,17 +116,17 @@ value(ORSet) ->
 %% lead to unexpected results!
 %% @end
 %%--------------------------------------------------------------------
--spec gc(ORSet::orset()) -> ORSetGCed::orset().
+-spec gc(ORSet::vorset()) -> ORSetGCed::vorset().
 gc(ORSet) ->
-    #orset{adds = raw_value(ORSet),
+    #vorset{adds = raw_value(ORSet),
            removes = vgset:new()}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
--spec raw_value(ORSet::orset()) -> [{Element::term(), ID::term()}].
-raw_value(#orset{adds = Adds,
+-spec raw_value(ORSet::vorset()) -> [{Element::term(), ID::term()}].
+raw_value(#vorset{adds = Adds,
                  removes = Removes}) ->
     ordsets:subtract(vgset:value(Adds), vgset:value(Removes)).
 
@@ -162,7 +162,7 @@ apply_ops(Ops) ->
 targets() ->
     list({oneof([a, b, ab]), oneof([add, remove]), pos_integer()}).
 
-prop_orset() ->
+prop_vorset() ->
     ?FORALL(Ts,  targets(),
             begin
                 {A, B, C} = apply_ops(Ts),
