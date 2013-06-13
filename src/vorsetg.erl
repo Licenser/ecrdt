@@ -248,6 +248,6 @@ propper_test() ->
                  proper:module(?MODULE,
                                [{to_file, user},
                                 long_result,
-                                {numtests, 5000}])).
+                                {numtests, 10000}])).
 
 -endif.
