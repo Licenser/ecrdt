@@ -170,6 +170,11 @@ prop_vorset() ->
             end).
 
 propper_test() ->
-    ?assertEqual([], proper:module(?MODULE, [{to_file, user}, long_result])).
+    ?assertEqual([],
+                 proper:module(
+                   ?MODULE,
+                   [{numtests, 1000},
+                    {to_file, user},
+                    long_result])).
 
 -endif.
