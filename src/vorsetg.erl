@@ -18,7 +18,7 @@
 -export([
          new/0, new/1,
          add/2, add/3,
-         remove/3,
+         remove/2,  remove/3,
          merge/2,
          value/1,
          gc/2, gcable/1
@@ -30,7 +30,7 @@
 
 -opaque vorsetg() :: #vorsetg{}.
 
--define(NUMTESTS, 500).
+-define(NUMTESTS, 1000).
 -export_type([vorsetg/0]).
 
 %%%===================================================================
@@ -80,6 +80,10 @@ add(Element, ORSet) ->
 %% putting them in the list of removed items.
 %% @end
 %%--------------------------------------------------------------------
+-spec remove(Element::term(), ORSet::vorsetg()) -> ORSet1::vorsetg().
+remove(Element, ORSet) ->
+    remove(now_us(), Element, ORSet).
+
 -spec remove(Id :: term(), Element::term(), ORSet::vorsetg()) -> ORSet1::vorsetg().
 remove(Id, Element, ORSet = #vorsetg{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {_, E1} <- raw_value(ORSet),
@@ -155,6 +159,11 @@ raw_value(#vorsetg{adds = Adds,
                    removes = Removes}) ->
     ordsets:subtract(Adds, lists:sort([E || {_, E} <- rot:value(Removes)])).
 
+now_us() ->
+    {MegaSecs,Secs,MicroSecs} = os:timestamp(),
+	(MegaSecs*1000000 + Secs)*1000000 + MicroSecs.
+
+
 %%%===================================================================
 %%% Tests
 %%%===================================================================
@@ -162,10 +171,6 @@ raw_value(#vorsetg{adds = Adds,
 -ifdef(TEST).
 %%random_element(L) ->
 %%    lists:nth(random:uniform(length(L)), L).
-
-now_us() ->
-    {MegaSecs,Secs,MicroSecs} = now(),
-	(MegaSecs*1000000 + Secs)*1000000 + MicroSecs.
 
 gc_all(Obj, GCs) ->
     lists:foldl(fun gc/2, Obj, GCs).
@@ -261,7 +266,7 @@ targets() ->
     list(weighted_union(
            [{7, {oneof([a, b, ab]), oneof([add, remove]), integer(500, 550)}},
             {1, {gc, oneof([a, b, ab])}},
-            {3, merge}])).
+            {2, merge}])).
 
 prop_vorsetg() ->
     ?FORALL(Ts,  resize(1, targets()),
@@ -282,14 +287,14 @@ op(Module, {A, B, C, Now}, Target, Action, Value) ->
 
 targets_cmp() ->
     list(weighted_union(
-           [{7, {oneof([a, b, ab]), oneof([add, remove]), integer(500, 550)}},
+           [{7, {oneof([a, b, ab]), oneof([add, remove]), integer(500, 600)}},
             {1, gc},
-            {3, merge}])).
+            {2, merge}])).
 
 term_size(T) ->
     byte_size(term_to_binary(T)).
 
-size_check(N) ->
+size_check(Mod, N) ->
     Aggr = spawn(
              fun () ->
                      process_flag(trap_exit, true),
@@ -298,8 +303,8 @@ size_check(N) ->
     ?FORALL(Ts,
             resize(N, targets_cmp()),
             begin
-                A0 = new(5),
-                B0 = vorset:new(),
+                A0 = new(10),
+                B0 = Mod:new(),
                 Now0 = now_us(),
                 {{A1, A2, _A3, _},
                  {B1, B2, _B3, _}} =
@@ -310,7 +315,7 @@ size_check(N) ->
                                                   %%E1 = <<0:(8*E)>>,
                                                   E1 = E,
                                                   A1 = op(?MODULE, A, T, O, E1),
-                                                  B1 = op(vorset, B, T, O, E1),
+                                                  B1 = op(Mod, B, T, O, E1),
                                                   {A1,B1}
                                           end),
                               Aggr ! {op, T0},
@@ -322,7 +327,7 @@ size_check(N) ->
                                                end),
                               {T1, MergedB} = timer:tc(
                                                 fun() ->
-                                                        vorset:merge(B1, B2)
+                                                        Mod:merge(B1, B2)
                                                 end),
                               Aggr ! {merge, T0 + T1},
                               {{Merged, Merged, Merged, now_us()},
@@ -346,9 +351,9 @@ size_check(N) ->
                       end, {{A0, A0, A0, Now0},
                             {B0, B0, B0, Now0}}, Ts),
                 AM = merge(A1, A2),
-                BM = vorset:merge(B1, B2),
+                BM = Mod:merge(B1, B2),
                 AR = lists:sort(value(AM)),
-                BR = lists:sort(vorset:value(BM)),
+                BR = lists:sort(Mod:value(BM)),
                 AS = byte_size(term_to_binary(AM)),
                 BS = byte_size(term_to_binary(BM)),
                 Aggr ! {add, AS/BS},
@@ -360,7 +365,10 @@ size_check(N) ->
             end).
 
 prop_vorset_cmp() ->
-    size_check(1000).
+    size_check(vorset, 1000).
+
+prop_vorset2_cmp() ->
+    size_check(vorset2, 1000).
 
 
 propper_test_() ->
@@ -391,7 +399,7 @@ aggregator({Vs, GC, M, Op, Rs}) ->
             Vs1 = [V | Vs],
             case length(Vs1) of
                 ?NUMTESTS ->
-                    show_stats("Size", Vs),
+                    show_stats("Size", Vs1),
                     show_stats(" GC ", GC),
                     show_stats(" RS ", Rs),
                     show_stats(" MG ", M),
