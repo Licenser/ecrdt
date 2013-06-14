@@ -30,7 +30,7 @@
 
 -opaque vorsetg() :: #vorsetg{}.
 
--define(NUMTESTS, 1000).
+-define(NUMTESTS, 100).
 -export_type([vorsetg/0]).
 
 %%%===================================================================
@@ -298,7 +298,7 @@ size_check(Mod, N) ->
     Aggr = spawn(
              fun () ->
                      process_flag(trap_exit, true),
-                     aggregator({[], [], [], [], []})
+                     aggregator([], [], [], [], [], [], [])
              end),
     ?FORALL(Ts,
             resize(N, targets_cmp()),
@@ -310,26 +310,30 @@ size_check(Mod, N) ->
                  {B1, B2, _B3, _}} =
                     lists:foldl(
                       fun({T, O, E}, {A, B}) ->
-                              {T0, R} = timer:tc(
-                                          fun() ->
-                                                  %%E1 = <<0:(8*E)>>,
-                                                  E1 = E,
-                                                  A1 = op(?MODULE, A, T, O, E1),
-                                                  B1 = op(Mod, B, T, O, E1),
-                                                  {A1,B1}
-                                          end),
-                              Aggr ! {op, T0},
-                              R;
+                              E1 = <<0:(8*E)>>,
+                              %E1 = E,
+                              {T0, A1} = timer:tc(
+                                           fun() ->
+                                                   op(?MODULE, A, T, O, E1)
+                                           end),
+                              Aggr ! {opA, T0},
+                              {T1, B1} = timer:tc(
+                                           fun() ->
+                                                   op(Mod, B, T, O, E1)
+                                           end),
+                              Aggr ! {opB, T1},
+                              {A1,B1};
                          (merge, {{A1, A2, _A3, _}, {B1, B2, _B3, _}}) ->
                               {T0, Merged} = timer:tc(
                                                fun() ->
                                                        merge(A1, A2)
                                                end),
+                              Aggr ! {mergeA, T0},
                               {T1, MergedB} = timer:tc(
                                                 fun() ->
                                                         Mod:merge(B1, B2)
                                                 end),
-                              Aggr ! {merge, T0 + T1},
+                              Aggr ! {mergeB, T1},
                               {{Merged, Merged, Merged, now_us()},
                                {MergedB, MergedB, MergedB, now_us()}};
                          (gc, {{A1, A2, A3, Now}, B}) ->
@@ -356,7 +360,7 @@ size_check(Mod, N) ->
                 BR = lists:sort(Mod:value(BM)),
                 AS = byte_size(term_to_binary(AM)),
                 BS = byte_size(term_to_binary(BM)),
-                Aggr ! {add, AS/BS},
+                Aggr ! {size, AS/BS},
                 ?WHENFAIL(
                    ?debugFmt("~n~p =/= ~p.~n", [AR, BR]),
                    begin
@@ -393,34 +397,44 @@ show_stats(Title, Vs) ->
                       [Title, Cnt, Avg, Min, Max])
     end.
 
-aggregator({Vs, GC, M, Op, Rs}) ->
+aggregator(Vs, GC, Ma, Mb, Oa, Ob, Rs) ->
     receive
-        {add, V} ->
+        {size, V} ->
             Vs1 = [V | Vs],
             case length(Vs1) of
                 ?NUMTESTS ->
                     show_stats("Size", Vs1),
                     show_stats(" GC ", GC),
                     show_stats(" RS ", Rs),
-                    show_stats(" MG ", M),
-                    show_stats(" OP ", Op);
+                    show_stats("MRGa", Ma),
+                    show_stats("MRGb", Mb),
+                    show_stats(" OPa", Oa),
+                    show_stats(" OPb", Ob);
                 _ ->
-                    aggregator({Vs1, GC, M, Op, Rs})
+                    aggregator(Vs1, GC, Ma, Mb, Oa, Ob, Rs)
             end;
         {gc, V} ->
-            aggregator({Vs, [V | GC], M, Op, Rs});
-        {merge, V} ->
-            aggregator({Vs, GC, [V | M], Op, Rs});
-        {op, V} ->
-            aggregator({Vs, GC, M, [V | Op], Rs});
+            aggregator(Vs, [V | GC], Ma, Mb, Oa, Ob, Rs);
+        {mergeA, V} ->
+            aggregator(Vs, GC, [V | Ma], Mb, Oa, Ob, Rs);
+        {mergeB, V} ->
+            aggregator(Vs, GC, Ma, [V | Mb], Oa, Ob, Rs);
+        {opA, V} ->
+            aggregator(Vs, GC, Ma, Mb, [V | Oa], Ob, Rs);
+        {opB, V} ->
+            aggregator(Vs, GC, Ma, Mb, Oa, [V | Ob], Rs);
         {reduction, V} ->
-            aggregator({Vs, GC, M, Op, [V | Rs]});
-        done ->
+            aggregator(Vs, GC, Ma, Mb, Oa, Ob, [V | Rs])
+    after
+        10000 ->
+            ?debugFmt("Timeout: ~p < ~p~n", [length(Vs), ?NUMTESTS]),
             show_stats("Size", Vs),
-            show_stats(" RS ", Rs),
             show_stats(" GC ", GC),
-            show_stats(" MG ", M),
-            show_stats(" OP ", Op)
+            show_stats(" RS ", Rs),
+            show_stats("MRGa", Ma),
+            show_stats("MRGb", Mb),
+            show_stats(" OPa", Oa),
+            show_stats(" OPb", Ob)
     end.
 
 
