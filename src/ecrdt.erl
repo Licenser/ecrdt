@@ -2,7 +2,9 @@
 
 -export([id/0,
          merge/2,
-         value/1]).
+         value/1,
+         now_us/0,
+         timestamp_us/0]).
 
 %%%===================================================================
 %%% Implementation
@@ -35,6 +37,14 @@ value(A) when is_tuple(A) ->
 
 value(A) ->
     A.
+
+now_us() ->
+    {MegaSecs, Secs, MicroSecs} = erlang:now(),
+	{(MegaSecs*1000000 + Secs)*1000000 + MicroSecs, test}.
+
+timestamp_us() ->
+    {MegaSecs, Secs, MicroSecs} = os:timestamp(),
+	{(MegaSecs*1000000 + Secs)*1000000 + MicroSecs, test}.
 
 
 
