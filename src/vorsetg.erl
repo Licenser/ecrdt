@@ -25,12 +25,12 @@
         ]).
 
 -record(vorsetg, {adds = [] :: ordsets:ordset(),
-                  gced = [] :: ordsets:ordset(),
+                  gced :: rot:rot(),
                   removes :: rot:rot()}).
 
 -opaque vorsetg() :: #vorsetg{}.
 
--define(NUMTESTS, 100).
+-define(NUMTESTS, 200).
 -export_type([vorsetg/0]).
 
 %%%===================================================================
@@ -44,7 +44,10 @@
 %%--------------------------------------------------------------------
 -spec new() -> vorsetg().
 new() ->
-    #vorsetg{removes = rot:new()}.
+    #vorsetg{
+       gced = rot:new(),
+       removes = rot:new()
+      }.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -53,7 +56,10 @@ new() ->
 %%--------------------------------------------------------------------
 -spec new(Size::pos_integer()) -> vorsetg().
 new(Size) ->
-    #vorsetg{removes = rot:new(Size)}.
+    #vorsetg{
+       gced = rot:new(Size),
+       removes = rot:new(Size)
+      }.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -105,11 +111,11 @@ merge(ROTA = #vorsetg{gced = GCedA},
        adds = AddsA,
        gced = GCed,
        removes = RemovesA}
-        = lists:foldl(fun gc/2, ROTA, GCedB),
+        = lists:foldl(fun gc/2, ROTA, rot:value(GCedB)),
     #vorsetg{
        adds = AddsB,
        removes = RemovesB}
-        = lists:foldl(fun gc/2, ROTB, GCedA),
+        = lists:foldl(fun gc/2, ROTB, rot:value(GCedA)),
     ROT1 = rot:merge(RemovesA, RemovesB),
     #vorsetg{adds = ordsets:union(AddsA, AddsB),
              gced = GCed,
@@ -143,12 +149,17 @@ gc(HashID,
     {Values, Removes1} = rot:remove(HashID, Removes),
     Values1 = [V || {_, V} <- Values],
     Values2 = ordsets:from_list(Values1),
+    {_, GCed1} = rot:remove(HashID, GCed),
     #vorsetg{adds = ordsets:subtract(Adds, Values2),
-             gced = ordsets:add_element(HashID, GCed),
+             gced = rot:add(HashID, GCed1),
              removes = Removes1}.
 
-gcable(#vorsetg{removes = Removes}) ->
-    rot:full(Removes).
+gcable(#vorsetg{
+          removes = Removes,
+          gced = GCed}) ->
+    ordsets:union(
+      ordsets:from_list(rot:full(Removes)),
+      ordsets:from_list(rot:full(GCed))).
 
 %%%===================================================================
 %%% Internal functions
@@ -287,7 +298,7 @@ op(Module, {A, B, C, Now}, Target, Action, Value) ->
 
 targets_cmp() ->
     list(weighted_union(
-           [{7, {oneof([a, b, ab]), oneof([add, remove]), integer(500, 600)}},
+           [{7, {oneof([a, b, ab]), oneof([add, remove]), integer(1000, 1100)}},
             {1, gc},
             {2, merge}])).
 
@@ -369,10 +380,10 @@ size_check(Mod, N) ->
             end).
 
 prop_vorset_cmp() ->
-    size_check(vorset, 1000).
+    size_check(vorset, 2000).
 
 prop_vorset2_cmp() ->
-    size_check(vorset2, 1000).
+    size_check(vorset2, 2000).
 
 
 propper_test_() ->
