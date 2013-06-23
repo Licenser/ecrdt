@@ -12,7 +12,9 @@
 id() ->
     {now(), node()}.
 
-merge(A, B) ->
+merge(A, B)
+  when is_tuple(A),
+       is_tuple(B) ->
     M = element(1, A),
     M = element(1, B),
     case erlang:function_exported(M, merge, 2) of
@@ -22,7 +24,7 @@ merge(A, B) ->
             erlang:error(badarg)
     end.
 
-value(A) when is_tupel(A) ->
+value(A) when is_tuple(A) ->
     M = element(1, A),
     case erlang:function_exported(M, value, 1) of
         true ->
