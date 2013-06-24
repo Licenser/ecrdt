@@ -40,11 +40,11 @@ value(A) ->
 
 now_us() ->
     {MegaSecs, Secs, MicroSecs} = erlang:now(),
-	{(MegaSecs*1000000 + Secs)*1000000 + MicroSecs, test}.
+	(MegaSecs*1000000 + Secs)*1000000 + MicroSecs.
 
 timestamp_us() ->
     {MegaSecs, Secs, MicroSecs} = os:timestamp(),
-	{(MegaSecs*1000000 + Secs)*1000000 + MicroSecs, test}.
+	(MegaSecs*1000000 + Secs)*1000000 + MicroSecs.
 
 
 
