@@ -29,14 +29,13 @@
          hash :: hash(),
          elements = []}).
 
--type rotid(TimerType, ValueType) :: {Timestamp::TimerType, Value::ValueType}.
--type rotid() :: rotid(erlang:timestamp(), term()).
+-type rotid() :: {erlang:timestamp(), term()}.
 -type hash(IDType) :: {ID::IDType, Hash::binary()}.
 -type hash() :: hash(term()).
 -opaque rot() :: #rot{}.
 -opaque rot_bucket() :: #rot_bucket{}.
 
--export_type([rot/0, rotid/2, rotid/0, hash/0, hash/1]).
+-export_type([rot/0, rotid/0, hash/0, hash/1]).
 
 -export([new/0, new/1,
          add/2,
