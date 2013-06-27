@@ -34,7 +34,7 @@
 -opaque rot() :: #rot{}.
 -opaque rot_bucket() :: #rot_bucket{}.
 
--export_type([rot/0, rotid/0, hash/0, hash/1]).
+-export_type([rot/0, rotid/0, hash/0]).
 
 -export([new/0, new/1,
          add/2,
