@@ -102,7 +102,7 @@ merge(#v2pset{adds = Adds0,
 %%--------------------------------------------------------------------
 -spec gc(V2pset::v2pset()) -> V2psetGCed::v2pset().
 gc(V2pset) ->
-    #v2pset{adds = value(V2pset),
+    #v2pset{adds = vgset:from_list(value(V2pset)),
             removes = vgset:new()}.
 
 %%%===================================================================

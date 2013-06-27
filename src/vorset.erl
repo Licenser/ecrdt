@@ -118,14 +118,14 @@ value(ORSet) ->
 %%--------------------------------------------------------------------
 -spec gc(ORSet::vorset()) -> ORSetGCed::vorset().
 gc(ORSet) ->
-    #vorset{adds = raw_value(ORSet),
+    #vorset{adds = vgset:from_list(raw_value(ORSet)),
            removes = vgset:new()}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
--spec raw_value(ORSet::vorset()) -> [{Element::term(), ID::term()}].
+-spec raw_value(ORSet::vorset()) -> ordsets:ordset().
 raw_value(#vorset{adds = Adds,
                  removes = Removes}) ->
     ordsets:subtract(vgset:value(Adds), vgset:value(Removes)).

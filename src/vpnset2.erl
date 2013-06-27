@@ -18,7 +18,7 @@
 
 -type pnset_element() :: {term(), vpncounter2:vpncounter2()}.
 
--record(vpnset2, {values = [] :: pnset_element()}).
+-record(vpnset2, {values = [] :: [pnset_element()]}).
 
 -opaque vpnset2() :: #vpnset2{}.
 

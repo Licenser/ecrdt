@@ -26,11 +26,11 @@
 
 -record(rot_bucket,
         {newest = 0 :: rotid(),
-         hash :: hash(),
+         hash :: binary(),
          elements = []}).
 
--type rotid() :: {ID::erlang:timestamp(), Data::term()}.
--type hash() :: {ID::erlang:timestamp(), Hash::binary()}.
+-type rotid() :: ID::pos_integer().
+-type hash() :: {ID::pos_integer(), Hash::binary()}.
 -opaque rot() :: #rot{}.
 -opaque rot_bucket() :: #rot_bucket{}.
 

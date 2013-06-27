@@ -88,9 +88,10 @@ add(Element, ORSet) ->
 %%--------------------------------------------------------------------
 -spec remove(Element::term(), ORSet::vorsetg()) -> ORSet1::vorsetg().
 remove(Element, ORSet) ->
-    remove(now_us(), Element, ORSet).
+    remove(ecrdt:timestamp_us(), Element, ORSet).
 
--spec remove(Id :: term(), Element::term(), ORSet::vorsetg()) -> ORSet1::vorsetg().
+-spec remove(Id :: pos_integer(),
+             Element::term(), ORSet::vorsetg()) -> ORSet1::vorsetg().
 remove(Id, Element, ORSet = #vorsetg{removes = Removes}) ->
     CurrentExisting = [Elem || Elem = {_, E1} <- raw_value(ORSet),
                                E1 =:= Element],
@@ -170,11 +171,6 @@ raw_value(#vorsetg{adds = Adds,
                    removes = Removes}) ->
     ordsets:subtract(Adds, lists:sort([E || {_, E} <- rot:value(Removes)])).
 
-now_us() ->
-    {MegaSecs,Secs,MicroSecs} = os:timestamp(),
-	(MegaSecs*1000000 + Secs)*1000000 + MicroSecs.
-
-
 %%%===================================================================
 %%% Tests
 %%%===================================================================
@@ -214,7 +210,7 @@ op(Mod, a, remove, _E0, C1, C2, Check, Now) ->
         [E | _] ->
             case Mod of
                 ?MODULE ->
-                    ID = now_us(),
+                    ID = ecrdt:timestamp_us(),
                     {Mod:remove(ID, E, C1), C2, Mod:remove(ID, E, Check), Now};
                 _ ->
                     {Mod:remove(E, C1), C2, Mod:remove(E, Check), Now}
@@ -227,7 +223,7 @@ op(Mod, b, remove, _E0, C1, C2, Check, Now) ->
         [E | _] ->
             case Mod of
                 ?MODULE ->
-                    ID = now_us(),
+                    ID = ecrdt:timestamp_us(),
                     {C1, Mod:remove(ID, E, C2), Mod:remove(ID, E, Check), Now};
                 _ ->
                     {C1, Mod:remove(E, C2), Mod:remove(E, Check), Now}
@@ -242,7 +238,7 @@ op(Mod, ab, remove, _E0, C1, C2, Check, Now) ->
         [E | _] ->
             case Mod of
                 ?MODULE ->
-                    ID = now_us(),
+                    ID = ecrdt:timestamp_us(),
                     {Mod:remove(ID, E, C1),
                      Mod:remove(ID, E, C2),
                      Mod:remove(ID, E, Check), Now};
@@ -260,7 +256,7 @@ apply_ops(Ops) ->
                         op(T, O, E, A, B, C, M);
                    (merge, {A, B, C, _}) ->
                         Merged = merge(A, merge(B, C)),
-                        {Merged, Merged, Merged, now_us()};
+                        {Merged, Merged, Merged, ecrdt:timestamp_us()};
                    ({gc, a}, {A, B, C, Now}) ->
                         GC = gcable(A, C, Now),
                         {gc_all(A, GC), B, gc_all(C, GC), Now};
@@ -270,7 +266,7 @@ apply_ops(Ops) ->
                    ({gc, ab}, {A, B, C, Now}) ->
                         GC = gcable(A, B, C, Now),
                         {gc_all(A, GC), gc_all(B, GC), gc_all(C, GC), Now}
-                end, {Obj, Obj, Obj, now_us()}, Ops).
+                end, {Obj, Obj, Obj, ecrdt:timestamp_us()}, Ops).
 
 %% A list of opperations and targets.
 targets() ->
@@ -316,7 +312,7 @@ size_check(Mod, N) ->
             begin
                 A0 = new(10),
                 B0 = Mod:new(),
-                Now0 = now_us(),
+                Now0 = ecrdt:timestamp_us(),
                 {{A1, A2, _A3, _},
                  {B1, B2, _B3, _}} =
                     lists:foldl(
@@ -345,8 +341,8 @@ size_check(Mod, N) ->
                                                         Mod:merge(B1, B2)
                                                 end),
                               Aggr ! {mergeB, T1},
-                              {{Merged, Merged, Merged, now_us()},
-                               {MergedB, MergedB, MergedB, now_us()}};
+                              {{Merged, Merged, Merged, ecrdt:timestamp_us()},
+                               {MergedB, MergedB, MergedB, ecrdt:timestamp_us()}};
                          (gc, {{A1, A2, A3, Now}, B}) ->
                               {T0, R} =
                                   timer:tc(
