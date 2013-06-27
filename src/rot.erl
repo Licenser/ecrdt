@@ -29,9 +29,8 @@
          hash :: hash(),
          elements = []}).
 
--type rotid() :: {erlang:timestamp(), term()}.
--type hash(IDType) :: {ID::IDType, Hash::binary()}.
--type hash() :: hash(term()).
+-type rotid() :: {ID::erlang:timestamp(), Data::term()}.
+-type hash() :: {ID::erlang:timestamp(), Hash::binary()}.
 -opaque rot() :: #rot{}.
 -opaque rot_bucket() :: #rot_bucket{}.
 
