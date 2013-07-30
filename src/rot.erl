@@ -34,7 +34,7 @@
 -opaque rot() :: #rot{}.
 -opaque rot_bucket() :: #rot_bucket{}.
 
--export_type([rot/0, rotid/0, hash/0]).
+-export_type([rot/0, rotid/0, hash/0, rot_bucket/0]).
 
 -export([new/0, new/1,
          add/2,
@@ -177,6 +177,45 @@ radd(Id, Term, Size, [R | Rs], Acc) ->
     {Id1, Term1, R1} = add_element({Id, Term}, Size, R),
     radd(Id1, Term1, Size, Rs, [R1 | Acc]).
 
+-ifndef(old_hash).
+add_element(E, Size, R = #rot_bucket{elements = Es}) ->
+    Es1 = ordsets:add_element(E, Es),
+    case length(Es1) of
+        _L when _L > Size ->
+            Es2 = lists:reverse(Es1),
+            [{Id1, Term1} | [{Newest, _} | _] = Es3] = Es2,
+            Es4 = lists:reverse(Es3),
+            {Id1,
+             Term1,
+             R#rot_bucket{
+               elements = Es4,
+               newest = Newest,
+               hash = crypto:hash(sha, term_to_binary(Es4))
+              }};
+        _L when _L =:= Size ->
+            Es2 = lists:reverse(Es1),
+            [{Newest, _} | _] = Es3 = Es2,
+            Es4 = lists:reverse(Es3),
+            {undefined,
+             undefined,
+             R#rot_bucket{
+               elements = Es4,
+               newest = Newest,
+               hash = crypto:hash(sha, term_to_binary(Es4))
+              }};
+        _ ->
+            Es2 = lists:reverse(Es1),
+            [{Newest, _} | _] = Es3 = Es2,
+            Es4 = lists:reverse(Es3),
+            {undefined,
+             undefined,
+             R#rot_bucket{
+               elements = Es4,
+               newest = Newest,
+               hash = undefined
+              }}
+    end.
+-else.
 add_element(E, Size, R = #rot_bucket{elements = Es}) ->
     Es1 = ordsets:add_element(E, Es),
     case length(Es1) of
@@ -214,6 +253,7 @@ add_element(E, Size, R = #rot_bucket{elements = Es}) ->
                hash = undefined
               }}
     end.
+-endif.
 
 %%%===================================================================
 %%% Tests
