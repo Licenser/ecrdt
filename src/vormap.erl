@@ -10,16 +10,23 @@
 -export([
          new/0,
          set/3,
+         inc/3,
+         dec/3,
+         set_add/3,
+         set_remove/3,
          remove/2,
          value/1,
          merge/2,
          is_a/1,
-         type/0
+         type/0,
+         get/2,
+         get_value/2
         ]).
 
 -record(vormap, {
-          set_backend = vorsetg,
+          set_backend = vorset2,
           reg_backend = vlwwregister,
+          cnt_backend = vpncounter2,
           keys :: any(),
           map = []
          }).
@@ -55,6 +62,7 @@ set(Ks, V, M = #vormap{
           end,
     update(Ks, Fun, M);
 
+
 set(K, V, M) ->
     set([K], V, M).
 
@@ -80,6 +88,85 @@ remove(K,
       map = Map1
      }.
 
+inc(Ks, V, M = #vormap{
+                  cnt_backend = Cnt
+                 }) when is_list(Ks),
+                         V >= 0 ->
+    Fun = fun(undefined) ->
+                  Cnt:inc(V, Cnt:new());
+             (E) ->
+                  case ecrdt:type(E) of
+                      counter ->
+                          Cnt:inc(V, E);
+                      gcounter ->
+                          Cnt:inc(V, E);
+                      _ ->
+                          erlang:error(badarg)
+                  end
+          end,
+    update(Ks, Fun, M);
+
+inc(K, V, M) when V >= 0->
+    inc([K], V, M).
+
+dec(Ks, V, M = #vormap{
+                  cnt_backend = Cnt
+                 }) when is_list(Ks),
+                         V >= 0->
+    Fun = fun(undefined) ->
+                  Cnt:dec(V, Cnt:new());
+             (E) ->
+                  case ecrdt:type(E) of
+                      counter ->
+                          Cnt:dec(V, E);
+                      _ ->
+                          erlang:error(badarg)
+                  end
+          end,
+    update(Ks, Fun, M);
+
+dec(K, V, M) when V >= 0 ->
+    dec([K], V, M).
+
+set_add(Ks, V, M = #vormap{
+                      set_backend = Set
+                     }) when is_list(Ks),
+                             V >= 0->
+    Fun = fun(undefined) ->
+                  Set:from_list([V]);
+             (E) ->
+                  case ecrdt:type(E) of
+                      gset ->
+                          Set:add(V, E);
+                      set ->
+                          Set:add(V, E);
+                      _ ->
+                          erlang:error(badarg)
+                  end
+          end,
+    update(Ks, Fun, M);
+
+set_add(K, V, M) when V >= 0 ->
+    set_add([K], V, M).
+
+set_remove(Ks, V, M = #vormap{
+                         set_backend = Set
+                        }) when is_list(Ks),
+                                V >= 0->
+    Fun = fun(undefined) ->
+                  Set:from_list([]);
+             (E) ->
+                  case ecrdt:type(E) of
+                      set ->
+                          Set:remove(V, E);
+                      _ ->
+                          erlang:error(badarg)
+                  end
+          end,
+    update(Ks, Fun, M);
+
+set_remove(K, V, M) when V >= 0 ->
+    set_add([K], V, M).
 
 update([K], Fun,
        M = #vormap{
@@ -129,6 +216,27 @@ update([K | Ks], Fun,
       keys = Keys2,
       map = Map1
      }.
+
+get_value(Ks, M) ->
+    case vormap:get(Ks, M) of
+        {ok, V} ->
+            {ok, ecrdt:value(V)};
+        E ->
+            E
+    end.
+
+get([K], #vormap{map = M}) ->
+    orddict:find(K, M);
+
+get([K | Ks], #vormap{map = M}) ->
+    case orddict:find(K, M) of
+        {ok, M1} ->
+            vormap:get(Ks, M1);
+        E ->
+            E
+    end;
+get(K, M) ->
+    vormap:get([K], M).
 
 value(#vormap{map = M}) ->
     [{K, ecrdt:value(V)} || {K, V} <- M].
@@ -246,6 +354,34 @@ nested_merge_test() ->
     ?assertEqual(value(MM1a), value(M4)),
     ?assertEqual(value(MM2), value(M4)),
     ?assertEqual(value(MM2a), value(M4)),
+    ok.
+
+get_test() ->
+    M = vormap:new(),
+    M1 = vormap:set(a, 1, M),
+    M2 = vormap:set(b, 2, M1),
+    M3 = vormap:set(a, 3, M2),
+    M4 = vormap:remove(b, M3),
+    ?assertEqual({ok, 1}, get_value(a, M1)),
+    ?assertEqual({ok, 1}, get_value(a, M2)),
+    ?assertEqual({ok, 2}, get_value(b, M2)),
+    ?assertEqual({ok, 3}, get_value(a, M3)),
+    ?assertEqual({ok, 2}, get_value(b, M3)),
+    ?assertEqual({ok, 3}, get_value(a, M4)),
+    ok.
+
+nested_get_test() ->
+    M = vormap:new(),
+    M1 = vormap:set([o, a], 1, M),
+    M2 = vormap:set([o, b], 2, M1),
+    M3 = vormap:set([o, a], 3, M2),
+    M4 = vormap:remove([o, b], M3),
+    ?assertEqual({ok, 1}, get_value([o, a], M1)),
+    ?assertEqual({ok, 1}, get_value([o, a], M2)),
+    ?assertEqual({ok, 2}, get_value([o, b], M2)),
+    ?assertEqual({ok, 3}, get_value([o, a], M3)),
+    ?assertEqual({ok, 2}, get_value([o, b], M3)),
+    ?assertEqual({ok, 3}, get_value([o, a], M4)),
     ok.
 
 merge_maps_test() ->

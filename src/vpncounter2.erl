@@ -18,7 +18,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([is_a/1, type/0, new/0, value/1, inc/3, dec/3, merge/2]).
+-export([is_a/1, type/0, new/0, value/1, inc/3, dec/3, inc/2, dec/2, merge/2]).
 
 -record(vpncounter2, {inc_counter :: vgcounter2:vgcounter2(),
                       dec_counter :: vgcounter2:vgcounter2()}).
@@ -81,6 +81,8 @@ inc(Master, Increment,
       inc_counter = vgcounter2:inc(Master, Increment, Inc)
      }.
 
+inc(Increment, Counter) ->
+    inc(node(), Increment, Counter).
 %%--------------------------------------------------------------------
 %% @doc
 %% Decrements the counter for a given master, if the master is not yet
@@ -95,6 +97,9 @@ dec(Master, Decrement,
     Counter#vpncounter2{
       dec_counter = vgcounter2:inc(Master, Decrement, Dec)
      }.
+
+dec(Increment, Counter) ->
+    dec(node(), Increment, Counter).
 
 %%--------------------------------------------------------------------
 %% @doc

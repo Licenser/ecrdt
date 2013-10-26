@@ -18,7 +18,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([type/0, is_a/1, new/0, value/1, inc/3, merge/2]).
+-export([type/0, is_a/1, new/0, value/1, inc/2, inc/3, merge/2]).
 
 -type vgcounter2_element() :: {Master::term(), Increment::pos_integer()}.
 
@@ -63,6 +63,10 @@ type() ->
 -spec new() -> vgcounter2().
 new() ->
     #vgcounter2{}.
+
+
+inc(Increment, C) ->
+    inc(node(), Increment, C).
 
 %%--------------------------------------------------------------------
 %% @doc
