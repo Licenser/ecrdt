@@ -15,7 +15,7 @@
 
 behaviour_info(callbacks) ->
     [{new, 0},
-%%     {merge, 2},
+     {merge, 2},
      {type, 0},
      {is_a, 1},
      {value, 1}];
@@ -64,7 +64,6 @@ type(A) ->
         _ ->
             erlang:error(badarg)
     end.
-
 
 now_us() ->
     {MegaSecs, Secs, MicroSecs} = erlang:now(),
