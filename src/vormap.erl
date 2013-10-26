@@ -28,7 +28,7 @@
                        {register, RegisterBackend::atom()}].
 
 -type update_fn() :: fun((V0::term() | undefined) ->
-                                V1 :: term() | remove).
+                                V1 :: term() | delete).
 -opaque vormap() :: #vormap{}.
 
 -export_type([vormap/0]).
@@ -95,7 +95,7 @@ remove([K], M) ->
 
 remove(Ks, M) when is_list(Ks) ->
     Fun = fun(_) ->
-                  remove
+                  delete
           end,
     update(Ks, Fun, M);
 
@@ -215,7 +215,7 @@ update([K], Fun,
                 {V0, B:remove(K, Keys)}
         end,
     case Fun(V) of
-        remove ->
+        delete ->
             M#vormap{
               keys = Keys1,
               map = orddict:erase(K, Map)
