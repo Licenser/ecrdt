@@ -8,12 +8,14 @@
 %%%-------------------------------------------------------------------
 -module(vlwwregister).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, assign/2, merge/2, value/1]).
+-export([new/0, new/1, assign/2, merge/2, value/1, is_a/1, type/0]).
 
 -record(vlwwregister, {value :: term(),
                        t :: term()}).
@@ -28,6 +30,29 @@
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vlwwregister{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    register.
+
+%%--------------------------------------------------------------------
+%% @doc
 %% Creates a new empty LWW register.
 %% @end
 %%--------------------------------------------------------------------
@@ -36,6 +61,8 @@
 new(Value) ->
     #vlwwregister{t = now(), value = Value}.
 
+new() ->
+    new(undefined).
 %%--------------------------------------------------------------------
 %% @doc
 %% Sets the value of a LWW register and updates the timestamp.

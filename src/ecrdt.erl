@@ -1,10 +1,27 @@
 -module(ecrdt).
 
+-export([behaviour_info/1]).
+
 -export([id/0,
          merge/2,
          value/1,
+         type/1,
          now_us/0,
          timestamp_us/0]).
+
+%%%===================================================================
+%%% Behavioyr
+%%%===================================================================
+
+behaviour_info(callbacks) ->
+    [{new, 0},
+%%     {merge, 2},
+     {type, 0},
+     {is_a, 1},
+     {value, 1}];
+
+behaviour_info(_Other) ->
+    undefined.
 
 %%%===================================================================
 %%% Implementation
@@ -37,6 +54,16 @@ value(A) when is_tuple(A) ->
 
 value(A) ->
     A.
+
+type(A) ->
+    M = element(1, A),
+    case erlang:function_exported(M, type, 0) of
+        true ->
+            M:type();
+        _ ->
+            erlang:error(badarg)
+    end.
+
 
 now_us() ->
     {MegaSecs, Secs, MicroSecs} = erlang:now(),

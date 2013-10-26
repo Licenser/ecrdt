@@ -10,12 +10,14 @@
 %%%-------------------------------------------------------------------
 -module(vgcounter).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, value/1, inc/3, merge/2]).
+-export([is_a/1, type/0, new/0, new/1, value/1, inc/3, merge/2]).
 
 -record(vgcounter, {vector, size}).
 
@@ -23,9 +25,34 @@
 
 -export_type([vgcounter/0]).
 
+-define(DEF_SIZE, 16).
+
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vgcounter{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    gcounter.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -37,6 +64,9 @@
 new(Size) ->
     L = [ 0 || _ <- lists:seq(1, Size)],
     #vgcounter{size = Size, vector = list_to_tuple(L)}.
+
+new() ->
+    new(?DEF_SIZE).
 
 %%--------------------------------------------------------------------
 %% @doc

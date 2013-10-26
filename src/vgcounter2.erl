@@ -11,12 +11,14 @@
 
 -module(vgcounter2).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, value/1, inc/3, merge/2]).
+-export([type/0, is_a/1, new/0, value/1, inc/3, merge/2]).
 
 -type vgcounter2_element() :: {Master::term(), Increment::pos_integer()}.
 
@@ -29,6 +31,29 @@
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vgcounter2{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    gcounter.
 
 %%--------------------------------------------------------------------
 %% @doc

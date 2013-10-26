@@ -10,12 +10,15 @@
 %%%-------------------------------------------------------------------
 -module(vorsetg).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
 -export([
+         type/0, is_a/1,
          new/0, new/1,
          add/2, add/3,
          remove/2,  remove/3,
@@ -30,12 +33,36 @@
 
 -opaque vorsetg() :: #vorsetg{}.
 
--define(NUMTESTS, 200).
+-define(NUMTESTS, 100).
+-define(NUMPROP, 100).
 -export_type([vorsetg/0]).
 
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vorsetg{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    register.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -376,10 +403,10 @@ size_check(Mod, N) ->
             end).
 
 prop_vorset_cmp() ->
-    size_check(vorset, 2000).
+    size_check(vorset, ?NUMPROP).
 
 prop_vorset2_cmp() ->
-    size_check(vorset2, 2000).
+    size_check(vorset2, ?NUMPROP).
 
 
 propper_test_() ->

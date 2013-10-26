@@ -8,12 +8,14 @@
 %%%-------------------------------------------------------------------
 -module(vpnset).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, add/3, remove/3, merge/2, value/1]).
+-export([type/0, is_a/1, new/0, new/1, add/3, remove/3, merge/2, value/1]).
 
 -type pnset_element() :: {term(), vpncounter:vpncounter()}.
 
@@ -24,9 +26,34 @@
 
 -export_type([vpnset/0]).
 
+-define(DEF_SIZE, 16).
+
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vpnset{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    set.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -36,6 +63,9 @@
 -spec new(Size::pos_integer()) -> vpnset().
 new(Size) ->
     #vpnset{size = Size}.
+
+new() ->
+    new(?DEF_SIZE).
 
 %%--------------------------------------------------------------------
 %% @doc

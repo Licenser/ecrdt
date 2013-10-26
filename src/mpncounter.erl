@@ -1,52 +1,78 @@
 -module(mpncounter).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, inc/2, dec/2, downstream/2, replay/2, value/1, gc/1]).
+-export([type/0, is_a/1, new/0, inc/2, dec/2, downstream/2, replay/2, value/1,
+         gc/1]).
 
--record(moncounter, {value = 0, messages = []}).
+-record(mpncounter, {value = 0, messages = []}).
 
--opaque moncounter() :: #moncounter{}.
+-opaque mpncounter() :: #mpncounter{}.
 
--export_type([moncounter/0]).
+-export_type([mpncounter/0]).
 
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
 
-new() ->
-    #moncounter{}.
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
 
-inc(Inc, #moncounter{value = V, messages = Msgs}) ->
+is_a(#mpncounter{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    counter.
+
+new() ->
+    #mpncounter{}.
+
+inc(Inc, #mpncounter{value = V, messages = Msgs}) ->
     ID = ecrdt:id(),
     M = {ID, inc, Inc},
-    {M, #moncounter{value = V + Inc,
+    {M, #mpncounter{value = V + Inc,
                    messages = ordsets:add_element(ID, Msgs)}}.
 
-dec(Dec, #moncounter{value = V, messages = Msgs}) ->
+dec(Dec, #mpncounter{value = V, messages = Msgs}) ->
     ID = ecrdt:id(),
     M = {ID, dec, Dec},
-    {M, #moncounter{value = V - Dec,
+    {M, #mpncounter{value = V - Dec,
                    messages = ordsets:add_element(ID, Msgs)}}.
 
-downstream({ID, inc, Inc}, C = #moncounter{value = V, messages = Msgs}) ->
+downstream({ID, inc, Inc}, C = #mpncounter{value = V, messages = Msgs}) ->
     case ordsets:is_element(ID, Msgs) of
         true ->
             C;
         _ ->
-            C#moncounter{value = V + Inc,
+            C#mpncounter{value = V + Inc,
                         messages = ordsets:add_element(ID, Msgs)}
     end;
 
-downstream({ID, dec, Dec}, C = #moncounter{value = V, messages = Msgs}) ->
+downstream({ID, dec, Dec}, C = #mpncounter{value = V, messages = Msgs}) ->
     case ordsets:is_element(ID, Msgs) of
         true ->
             C;
         _ ->
-            C#moncounter{value = V - Dec,
+            C#mpncounter{value = V - Dec,
                         messages = ordsets:add_element(ID, Msgs)}
     end.
 
@@ -55,10 +81,10 @@ replay(Messages, Counter) ->
                         downstream(M, C)
                 end, Counter, Messages).
 
-gc(#moncounter{value = V}) ->
-    #moncounter{value = V}.
+gc(#mpncounter{value = V}) ->
+    #mpncounter{value = V}.
 
-value(#moncounter{value = V}) ->
+value(#mpncounter{value = V}) ->
     V.
 
 %%%===================================================================

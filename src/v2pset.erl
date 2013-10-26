@@ -9,12 +9,15 @@
 %%%-------------------------------------------------------------------
 -module(v2pset).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, add/2, remove/2, merge/2, value/1, from_list/1, gc/1]).
+-export([is_a/1, type/0, new/0, add/2, remove/2, merge/2, value/1, from_list/1,
+         gc/1]).
 
 -record(v2pset, {adds :: vgset:vgset(),
                  removes :: vgset:vgset()}).
@@ -26,6 +29,29 @@
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#v2pset{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    set.
 
 %%--------------------------------------------------------------------
 %% @doc

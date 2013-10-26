@@ -10,12 +10,15 @@
 %%%-------------------------------------------------------------------
 -module(vpncounter2).
 
+-behaviour(ecrdt).
+
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, value/1, inc/3, dec/3, merge/2]).
+-export([is_a/1, type/0, new/0, value/1, inc/3, dec/3, merge/2]).
 
 -record(vpncounter2, {inc_counter :: vgcounter2:vgcounter2(),
                       dec_counter :: vgcounter2:vgcounter2()}).
@@ -27,6 +30,29 @@
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vpncounter2{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    counter.
 
 %%--------------------------------------------------------------------
 %% @doc

@@ -11,19 +11,22 @@
 %%%-------------------------------------------------------------------
 -module(vorset2).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/0, add/2, add/3, remove/2, merge/2, value/1, from_list/1, gc/1]).
+-export([type/0, is_a/1, new/0, add/2, add/3, remove/2, merge/2, value/1,
+         from_list/1, gc/1]).
 
--record(orset2, {values :: [{Element::term(), ID::term()}],
-                 seen :: [ID::term()]}).
+-record(vorset2, {values :: [{Element::term(), ID::term()}],
+                  seen :: [ID::term()]}).
 
--opaque orset2() :: #orset2{}.
+-opaque vorset2() :: #vorset2{}.
 
--export_type([orset2/0]).
+-export_type([vorset2/0]).
 
 %%%===================================================================
 %%% Implementation
@@ -31,12 +34,35 @@
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vorset2{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    set.
+
+%%--------------------------------------------------------------------
+%% @doc
 %% Creates a new empty OR Set.
 %% @end
 %%--------------------------------------------------------------------
--spec new() -> orset2().
+-spec new() -> vorset2().
 new() ->
-    #orset2{values = [],
+    #vorset2{values = [],
             seen = []}.
 
 %%--------------------------------------------------------------------
@@ -45,10 +71,10 @@ new() ->
 %% list.
 %% @end
 %%--------------------------------------------------------------------
--spec from_list(list()) -> orset2().
+-spec from_list(list()) -> vorset2().
 from_list(L) ->
     Values = [ {E, ecrdt:id()} || E <- L],
-    #orset2{values = Values,
+    #vorset2{values = Values,
             seen = ordsets:from_list([ID || {_, ID} <- Values])}.
 
 %%--------------------------------------------------------------------
@@ -57,7 +83,7 @@ from_list(L) ->
 %% provided by ecrdt:id().
 %% @end
 %%--------------------------------------------------------------------
--spec add(Element::term(), ORSet::orset2()) -> ORSet1::orset2().
+-spec add(Element::term(), ORSet::vorset2()) -> ORSet1::vorset2().
 add(Element, ORSet) ->
     add(ecrdt:id(), Element, ORSet).
 
@@ -66,13 +92,13 @@ add(Element, ORSet) ->
 %% Values an element to the OR set with a given master ID.
 %% @end
 %%--------------------------------------------------------------------
--spec add(ID::term(), Element::term(), ORSet::orset2()) -> ORSet1::orset2().
-add(ID, Element, ORSet = #orset2{values = Values, seen = Seen}) ->
+-spec add(ID::term(), Element::term(), ORSet::vorset2()) -> ORSet1::vorset2().
+add(ID, Element, ORSet = #vorset2{values = Values, seen = Seen}) ->
     case lists:member(ID, Seen) of
         true ->
             ORSet;
         false ->
-            ORSet#orset2{values = [{Element, ID} | Values],
+            ORSet#vorset2{values = [{Element, ID} | Values],
                          seen = ordsets:add_element(ID, Seen)}
     end.
 
@@ -81,25 +107,25 @@ add(ID, Element, ORSet = #orset2{values = Values, seen = Seen}) ->
 %% Removes a element from the OR set.
 %% @end
 %%--------------------------------------------------------------------
--spec remove(Element::term(), ORSet::orset2()) -> ORSet1::orset2().
-remove(Element, ORSet = #orset2{values = Values}) ->
-    ORSet#orset2{values = [E || {_V, _} = E <- Values, _V =/= Element]}.
+-spec remove(Element::term(), ORSet::vorset2()) -> ORSet1::vorset2().
+remove(Element, ORSet = #vorset2{values = Values}) ->
+    ORSet#vorset2{values = [E || {_V, _} = E <- Values, _V =/= Element]}.
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Merges two OR Sets.
 %% @end
 %%--------------------------------------------------------------------
--spec merge(ORSet0::orset2(), ORSet1::orset2()) -> ORSetM::orset2().
+-spec merge(ORSet0::vorset2(), ORSet1::vorset2()) -> ORSetM::vorset2().
 merge(ORSet0,
-      #orset2{values = Values, seen = Seen}) ->
+      #vorset2{values = Values, seen = Seen}) ->
     merge_sets(ORSet0, Values, Seen).
 
 merge_sets(ORSet, [], []) ->
     ORSet;
-merge_sets(ORSet = #orset2{values = Values,
+merge_sets(ORSet = #vorset2{values = Values,
                            seen = Seen}, [], [ID | R]) ->
-    merge_sets(ORSet#orset2{values = lists:keydelete(ID, 2, Values),
+    merge_sets(ORSet#vorset2{values = lists:keydelete(ID, 2, Values),
                             seen = ordsets:add_element(ID, Seen)}, [], R);
 merge_sets(ORSet, [{Element, ID} | R], Seen) ->
     merge_sets(add(ID, Element, ORSet), R, lists:delete(ID, Seen)).
@@ -109,7 +135,7 @@ merge_sets(ORSet, [{Element, ID} | R], Seen) ->
 %% Retrives the list of values from an OR Set.
 %% @end
 %%--------------------------------------------------------------------
--spec value(ORSet::orset2()) -> [Element::term()].
+-spec value(ORSet::vorset2()) -> [Element::term()].
 value(ORSet) ->
     ordsets:from_list([E || {E, _} <- raw_value(ORSet)]).
 
@@ -121,17 +147,17 @@ value(ORSet) ->
 %% lead to unexpected results!
 %% @end
 %%--------------------------------------------------------------------
--spec gc(ORSet::orset2()) -> ORSetGCed::orset2().
-gc(#orset2{values = Values}) ->
-    #orset2{values = Values,
+-spec gc(ORSet::vorset2()) -> ORSetGCed::vorset2().
+gc(#vorset2{values = Values}) ->
+    #vorset2{values = Values,
             seen = [ID || {_, ID} <-Values]}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
--spec raw_value(ORSet::orset2()) -> [{Element::term(), ID::term()}].
-raw_value(#orset2{values = Values}) ->
+-spec raw_value(ORSet::vorset2()) -> [{Element::term(), ID::term()}].
+raw_value(#vorset2{values = Values}) ->
     Values.
 
 %%%===================================================================

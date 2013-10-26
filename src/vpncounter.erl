@@ -9,12 +9,15 @@
 %%%-------------------------------------------------------------------
 -module(vpncounter).
 
+-behaviour(ecrdt).
+
 -ifdef(TEST).
 -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--export([new/1, value/1, inc/3, dec/3, merge/2]).
+-export([type/0, is_a/1, new/0,
+         new/1, value/1, inc/3, dec/3, merge/2]).
 
 -record(vpncounter, {inc_counter :: vgcounter:vgcounter(),
                      dec_counter :: vgcounter:vgcounter(),
@@ -30,6 +33,29 @@
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Tests is the passed data is implementing this type.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_a(any()) -> true | false.
+
+is_a(#vpncounter{}) ->
+    true;
+
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of this object
+%% @end
+%%--------------------------------------------------------------------
+-spec type() -> register | set | gset | counter | gcounter | map.
+
+type() ->
+    counter.
+
+%%--------------------------------------------------------------------
+%% @doc
 %% Creates a new empty vnpcounter with a given size. Be aware that the
 %% size can't be changed later on.
 %% @end
@@ -40,6 +66,12 @@ new(Size) when is_integer(Size),
     #vpncounter{
        inc_counter = vgcounter:new(Size),
        dec_counter = vgcounter:new(Size)
+      }.
+
+new() ->
+    #vpncounter{
+       inc_counter = vgcounter:new(),
+       dec_counter = vgcounter:new()
       }.
 
 %%--------------------------------------------------------------------
