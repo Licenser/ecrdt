@@ -81,8 +81,17 @@ inc(Master, Increment,
       inc_counter = vgcounter2:inc(Master, Increment, Inc)
      }.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Increments the counter using the node() as master.
+%% @end
+%%--------------------------------------------------------------------
+-spec inc(Increment::pos_integer(),
+          VPNCounter::vpncounter2()) ->
+                 VPNCounter1::vpncounter2().
 inc(Increment, Counter) ->
     inc(node(), Increment, Counter).
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Decrements the counter for a given master, if the master is not yet
@@ -98,6 +107,14 @@ dec(Master, Decrement,
       dec_counter = vgcounter2:inc(Master, Decrement, Dec)
      }.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Decrements the counter uses node() as master.
+%% @end
+%%--------------------------------------------------------------------
+-spec dec(Decrement::pos_integer(),
+          VPNCounter::vpncounter2()) ->
+                 VPNCounter1::vpncounter2().
 dec(Increment, Counter) ->
     dec(node(), Increment, Counter).
 
