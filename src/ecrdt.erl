@@ -55,6 +55,7 @@ value(A) when is_tuple(A) ->
 value(A) ->
     A.
 
+-spec type(term()) -> register | set | gset | counter | gcounter | map.
 type(A) ->
     M = element(1, A),
     case erlang:function_exported(M, type, 0) of

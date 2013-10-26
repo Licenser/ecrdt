@@ -8,45 +8,67 @@
 -endif.
 
 -export([
-         new/0,
-         set/3,
-         inc/3,
-         dec/3,
-         set_add/3,
-         set_remove/3,
-         remove/2,
-         value/1,
-         merge/2,
-         is_a/1,
-         type/0,
-         get/2,
-         get_value/2
+         new/0, new/1, is_a/1, type/0, merge/2,
+         set/3, remove/2,
+         inc/3, dec/3,
+         set_add/3, set_remove/3,
+         value/1, get/2, get_value/2
         ]).
 
 -record(vormap, {
           set_backend = vorset2,
           reg_backend = vlwwregister,
           cnt_backend = vpncounter2,
-          keys :: any(),
+          keys :: term(),
           map = []
          }).
 
+-type vormpa_opts():: [{set, SetBackend::atom()} |
+                       {counter, CounterBackend::atom()} |
+                       {register, RegisterBackend::atom()}].
+
+-type update_fn() :: fun((V0::term() | undefined) ->
+                                V1 :: term() | remove).
 -opaque vormap() :: #vormap{}.
 
 -export_type([vormap/0]).
 
+%%%===================================================================
+%%% Implementation
+%%%===================================================================
+
+-spec new() -> vormap().
 new() ->
     init(#vormap{}).
 
+-spec new(Opts::vormpa_opts()) -> vormap().
+new(Opts) ->
+    new(Opts, #vormap{}).
+
+new([{set, B} | R], M) ->
+    new(R, M#vormap{set_backend = B});
+
+new([{register, B} | R], M) ->
+    new(R, M#vormap{reg_backend = B});
+
+new([{counter, B} | R], M) ->
+    new(R, M#vormap{cnt_backend = B});
+
+new([], M) ->
+    init(M).
+
+-spec is_a(term()) -> true | false.
 is_a(#vormap{}) ->
     true;
 
 is_a(_) ->
     false.
 
+-spec type() -> register | set | gset | counter | gcounter | map.
 type() ->
     map.
 
+-spec set(Ks::[term()]|term(), V::term(), M::vormap()) -> vormap().
 set(Ks, V, M = #vormap{
                   reg_backend = Reg
                  }) when is_list(Ks) ->
@@ -65,6 +87,8 @@ set(Ks, V, M = #vormap{
 
 set(K, V, M) ->
     set([K], V, M).
+
+-spec remove(Ks::[term()]|term(), M::vormap()) -> vormap().
 
 remove([K], M) ->
     remove(K, M);
@@ -88,6 +112,8 @@ remove(K,
       map = Map1
      }.
 
+-spec inc(Ks::[term()]|term(), V::pos_integer(), M::vormap()) ->
+                 vormap().
 inc(Ks, V, M = #vormap{
                   cnt_backend = Cnt
                  }) when is_list(Ks),
@@ -109,6 +135,8 @@ inc(Ks, V, M = #vormap{
 inc(K, V, M) when V >= 0->
     inc([K], V, M).
 
+-spec dec(Ks::[term()]|term(), V::pos_integer(), M::vormap()) ->
+                 vormap().
 dec(Ks, V, M = #vormap{
                   cnt_backend = Cnt
                  }) when is_list(Ks),
@@ -128,10 +156,11 @@ dec(Ks, V, M = #vormap{
 dec(K, V, M) when V >= 0 ->
     dec([K], V, M).
 
+-spec set_add(Ks::[term()]|term(), V::term(), M::vormap()) ->
+                     vormap().
 set_add(Ks, V, M = #vormap{
                       set_backend = Set
-                     }) when is_list(Ks),
-                             V >= 0->
+                     }) when is_list(Ks) ->
     Fun = fun(undefined) ->
                   Set:from_list([V]);
              (E) ->
@@ -146,13 +175,14 @@ set_add(Ks, V, M = #vormap{
           end,
     update(Ks, Fun, M);
 
-set_add(K, V, M) when V >= 0 ->
+set_add(K, V, M) ->
     set_add([K], V, M).
 
+-spec set_remove(Ks::[term()]|term(), V::term(), M::vormap()) ->
+                        vormap().
 set_remove(Ks, V, M = #vormap{
                          set_backend = Set
-                        }) when is_list(Ks),
-                                V >= 0->
+                        }) when is_list(Ks) ->
     Fun = fun(undefined) ->
                   Set:from_list([]);
              (E) ->
@@ -165,9 +195,12 @@ set_remove(Ks, V, M = #vormap{
           end,
     update(Ks, Fun, M);
 
-set_remove(K, V, M) when V >= 0 ->
-    set_add([K], V, M).
+set_remove(K, V, M) ->
+    set_remove([K], V, M).
 
+-spec update(Ks::[term()]|term(),
+             F::update_fn(), M::vormap()) ->
+                    vormap().
 update([K], Fun,
        M = #vormap{
               keys = Keys,
@@ -217,6 +250,9 @@ update([K | Ks], Fun,
       map = Map1
      }.
 
+
+-spec get_value(Ks::[term()]|term(), vormap()) -> term().
+
 get_value(Ks, M) ->
     case vormap:get(Ks, M) of
         {ok, V} ->
@@ -224,6 +260,8 @@ get_value(Ks, M) ->
         E ->
             E
     end.
+
+-spec get(Ks::[term()]|term(), vormap()) -> term().
 
 get([K], #vormap{map = M}) ->
     orddict:find(K, M);
@@ -238,9 +276,12 @@ get([K | Ks], #vormap{map = M}) ->
 get(K, M) ->
     vormap:get([K], M).
 
+-spec value(vormap()) -> orddict:orddict().
 value(#vormap{map = M}) ->
     [{K, ecrdt:value(V)} || {K, V} <- M].
 
+-spec merge(A::vormap(), B::vormap()) ->
+                   Merged::vormap().
 merge(M0 = #vormap{
               set_backend = Set,
               reg_backend = _R,
